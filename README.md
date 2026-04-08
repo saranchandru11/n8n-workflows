@@ -67,6 +67,35 @@ Automatically reads incoming emails and replies using Claude AI.
 3. Replace `YOUR_CLAUDE_API_KEY` with your Anthropic API key
 4. Publish the workflow
 
+# AI Jobs Email Automation
+
+Daily email alerts for entry-level AI/ML jobs (0-2 years experience)
+
+## Features
+- ✅ Filters AI productivity, automation, ML jobs
+- ✅ Excludes senior roles
+- ✅ Multiple job boards (RemoteOK, Remotive)
+- ✅ Daily emails at 9 AM
+- ✅ Shows salary, company, description
+
+## Setup
+
+1. Import `workflow.json` into n8n
+2. Add credentials:
+   - Gmail (OAuth2)
+   - OpenAI API key (optional)
+3. Activate workflow
+
+## Job Sources
+- RemoteOK API
+- Remotive API
+
+## Customization
+Edit Code node to adjust:
+- Keywords for filtering
+- Salary range
+- Experience level
+- Email time
 ---
 
 ## Prerequisites
