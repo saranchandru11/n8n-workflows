@@ -68,7 +68,7 @@ Automatically reads incoming emails and replies using Claude AI.
 3. Replace `YOUR_CLAUDE_API_KEY` with your Anthropic API key
 4. Publish the workflow
 
-# AI Jobs Email Automation
+### 4. AI Jobs Email Automation
 
 Daily email alerts for entry-level AI/ML jobs (0-2 years experience)
 
