@@ -24,8 +24,25 @@ Automatically reads incoming emails and replies using Claude AI.
 4. Publish the workflow
 
 ---
+2. Email Summariser
+Reads your inbox and summarizes long emails into short bullet points using Claude AI.
 
-### 2. Daily AI News Digest
+**How it works:**
+- Gmail Trigger watches for new emails
+- IF node filters emails longer than 500 characters
+- Claude AI summarizes the email into 3-5 key bullet points
+- Gmail Send delivers the summary back to you
+
+**Nodes used:** Gmail Trigger → Edit Fields → IF → HTTP Request (Claude) → Edit Fields → Gmail Send
+
+**Setup:**
+1. Add your Gmail credential in n8n
+2. Replace `YOUR_CLAUDE_API_KEY` with your Anthropic API key
+3. Adjust character limit in IF node if needed (default: 500)
+4. Replace `YOUR_EMAIL_ADDRESS` in Gmail Send node
+5. Publish the workflow
+
+### 3. Daily AI News Digest
 Fetches the latest AI news every morning and sends a Claude-summarized digest to your inbox.
 
 **How it works:**
