@@ -61,8 +61,6 @@ Automatically reads incoming emails and replies using Claude AI.
 
 **Nodes used:** Gmail Trigger → Edit Fields → IF → HTTP Request (Claude) → Edit Fields → Gmail Send
 
-**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/0cd15fd9ae0a4cf2ac110e28a7f23b89)
-
 **Setup:**
 1. Add your Gmail credential in n8n
 2. Replace `ALLOWED_SENDER_EMAIL` with the sender you want to allow
