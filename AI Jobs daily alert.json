@@ -1,0 +1,181 @@
+{
+  "name": "AI Jobs daily alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -464,
+        -96
+      ],
+      "id": "2148a912-f4c5-4b9c-899b-4be7744336b7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "let jobs = [];\nconst allItems = $input.all();\n\nfor (const item of allItems) {\n  const data = item.json;\n  \n  if (Array.isArray(data)) {\n    jobs = jobs.concat(data);\n  } else if (Array.isArray(data.jobs)) {\n    jobs = jobs.concat(data.jobs);\n  } else if (data.position || data.title) {\n    jobs.push(data);\n  } else {\n    const arr = Object.values(data).find(v => Array.isArray(v));\n    if (arr) jobs = jobs.concat(arr);\n  }\n}\n\nif (jobs.length > 0 && jobs[0].legal) {\n  jobs = jobs.slice(1);\n}\n\nconst titleMustHave = [\n  'ai ', 'ai-', 'artificial intelligence', 'machine learning', 'ml ',\n  'prompt engineer', 'automation', 'llm', 'gpt', 'data scientist',\n  'ai analyst', 'ai engineer', 'ai specialist', 'ai strategist',\n  'ai ops', 'mlops', 'productiv', 'ai trainer', 'ai data'\n];\n\nconst seniorKeywords = ['senior', 'lead', 'principal', 'staff', 'director', \n                        'head of', 'vp', 'chief', 'manager'];\n\nconst filtered = jobs.filter(job => {\n  const title = (job.position || job.title || '').toLowerCase();\n  const desc = (job.description || '').toLowerCase();\n  const text = title + ' ' + desc;\n  \n  const hasAI = titleMustHave.some(kw => title.includes(kw));\n  const isSenior = seniorKeywords.some(kw => title.includes(kw));\n  const has5Plus = /5\\+|6\\+|7\\+|8\\+|10\\+/.test(text);\n  \n  return hasAI && !isSenior && !has5Plus;\n}).slice(0, 15);\n\nlet emailBody = '<h2>AI Jobs (0-2 Years Experience)</h2>';\nemailBody += '<p>Found ' + filtered.length + ' entry-level AI jobs (from ' + jobs.length + ' total across multiple job boards):</p><hr>';\n\nif (filtered.length > 0) {\n  for (let i = 0; i < filtered.length; i++) {\n    const job = filtered[i];\n    const title = job.position || job.title || 'Job Opening';\n    const company = job.company || job.company_name || 'Unknown';\n    const link = job.url ? (job.url.startsWith('http') ? job.url : 'https://remoteok.com' + job.url) : (job.apply_url || job.link || '#');\n    const desc = (job.description || '').substring(0, 300).replace(/\\n/g, ' ').replace(/<[^>]*>/g, '');\n    \n    let salaryText = 'Not specified';\n    if (job.salary_min > 0 && job.salary_max > 0) {\n      salaryText = '$' + job.salary_min + ' - $' + job.salary_max;\n    } else if (job.salary) {\n      salaryText = job.salary;\n    }\n    \n    const source = job.company_logo ? 'Remotive' : 'RemoteOK';\n    \n    emailBody += '<div style=\"margin: 20px 0; padding: 15px; border-left: 5px solid #0066cc; background: #f8f9fa;\">';\n    emailBody += '<h3>' + (i + 1) + '. ' + title + '</h3>';\n    emailBody += '<p><strong>Company:</strong> ' + company + '</p>';\n    emailBody += '<p><strong>Salary:</strong> ' + salaryText + '</p>';\n    emailBody += '<p><strong>Source:</strong> ' + source + '</p>';\n    emailBody += '<p>' + desc + '...</p>';\n    emailBody += '<p><a href=\"' + link + '\" style=\"color: #0066cc; font-weight: bold;\">Apply Now →</a></p>';\n    emailBody += '</div><hr>';\n  }\n} else {\n  emailBody += '<p>No entry-level AI jobs found today across all job boards.</p>';\n  emailBody += '<p>Also check: LinkedIn, Wellfound, Y Combinator</p>';\n}\n\nemailBody += '<p style=\"color: #999; font-size: 11px;\">Automated by n8n | ' + new Date().toLocaleDateString() + ' | Sources: RemoteOK, Remotive</p>';\n\nreturn [{\n  json: {\n    emailBody: emailBody,\n    subject: filtered.length > 0 ? filtered.length + ' Entry-Level AI Jobs!' : 'No AI Jobs Today',\n    totalJobs: jobs.length,\n    filteredCount: filtered.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -128
+      ],
+      "id": "6eac8013-17c6-49d1-b547-2aeba834f4c5",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "saranchandru1188@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        -128
+      ],
+      "id": "f2215ea1-ff6c-4866-bfb7-3aa46b23573a",
+      "name": "Send a message",
+      "webhookId": "9403d70d-68aa-4ae1-8a84-0caf6a3c67f4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YHJG9Vq94YIiJ0nz",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://remoteok.com/api",
+        "options": {
+          "lowercaseHeaders": false,
+          "response": {
+            "response": {
+              "fullResponse": "={{ true }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -272,
+        -208
+      ],
+      "id": "0182f3cf-7581-42c6-af05-8889995fe452",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://remotive.com/api/remote-jobs?category=software-dev",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -288,
+        -16
+      ],
+      "id": "4923feee-9421-483d-927a-6fe41b7b4597",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -32,
+        -128
+      ],
+      "id": "32c3048f-5eb0-40df-b688-2cde3fa2934d",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f02c08bd-e922-47ff-a4dd-453181346b89",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2255a7a69f7b1c9b3a4aef72e98904fe40f8bf3143c66ca5e2d9f0a80d740156"
+  },
+  "id": "OFBQMOZJ7wDA2zis",
+  "tags": []
+}
