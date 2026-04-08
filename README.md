@@ -17,7 +17,7 @@ Reads your inbox and summarizes long emails into short bullet points using Claud
 
 **Nodes used:** Gmail Trigger → Edit Fields → IF → HTTP Request (Claude) → Edit Fields → Gmail Send
 
-**Demo Video:** [▶️ Watch Demo]-(https://www.loom.com/share/2231a0ffa9054e749d5f2a5290243c29)
+**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/2231a0ffa9054e749d5f2a5290243c29)
 **Setup:**
 1. Add your Gmail credential in n8n
 2. Replace `YOUR_CLAUDE_API_KEY` with your Anthropic API key
