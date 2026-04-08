@@ -2,7 +2,9 @@
 
 A collection of AI-powered automation workflows built with [n8n](https://n8n.io) and [Claude AI](https://anthropic.com) by a student learning AI automation.
 
-⚠️ **SECURITY WARNING:** All workflow files contain placeholders instead of real API keys. Never commit actual credentials to GitHub. See [Security Best Practices](#security-best-practices) below.
+---
+
+⚠️ **SECURITY WARNING:** All workflow files contain placeholders instead of real API keys. Never commit actual credentials to GitHub. See [Security Best Practices](#-security-best-practices) below.
 
 ---
 
@@ -62,6 +64,7 @@ Automatically reads incoming emails and replies using Claude AI.
 - Gmail Send node delivers the reply automatically
 
 **Nodes used:** Gmail Trigger → Edit Fields → IF → HTTP Request (Claude) → Edit Fields → Gmail Send
+
 **Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/6214c557b0744e5d8942919d37781edb)
 
 **Setup:**
@@ -70,27 +73,20 @@ Automatically reads incoming emails and replies using Claude AI.
 3. Replace `YOUR_CLAUDE_API_KEY` with your Anthropic API key
 4. Publish the workflow
 
+---
+
 ### 4. AI Jobs Email Automation
 
 Daily email alerts for entry-level AI/ML jobs (0-2 years experience)
 
-## Features
+**Features:**
 - ✅ Filters AI productivity, automation, ML jobs
 - ✅ Excludes senior roles
 - ✅ Multiple job boards (RemoteOK, Remotive)
 - ✅ Daily emails at 9 AM
 - ✅ Shows salary, company, description
 
-## Setup
-
-1. Import `workflow.json` into n8n
-2. Add credentials:
-   - Gmail (OAuth2)
-   - OpenAI API key (optional)
-3. Activate workflow
-## 🛠️ Workflow Architecture
-
-### Nodes Used:
+**Nodes Used:**
 
 | Node | Purpose | Configuration |
 |------|---------|---------------|
@@ -102,16 +98,24 @@ Daily email alerts for entry-level AI/ML jobs (0-2 years experience)
 | **Gmail** | Send email | OAuth2 authentication |
 
 **Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/03d3e50f07a54a7fb8f6c5714465585f)
-## Job Sources
+
+**Setup:**
+1. Import `ai-jobs-automation.json` into n8n
+2. Add Gmail credential (OAuth2)
+3. Customize filters in Code node (optional)
+4. Activate workflow
+
+**Job Sources:**
 - RemoteOK API
 - Remotive API
 
-## Customization
+**Customization:**
 Edit Code node to adjust:
 - Keywords for filtering
 - Salary range
 - Experience level
 - Email time
+
 ---
 
 ## Prerequisites
@@ -123,40 +127,47 @@ Edit Code node to adjust:
 
 ---
 
-## How to Import a Workflow
+## 🔐 Security Best Practices
 
-1. Download the `.json` file from this repo
-2. Open your n8n dashboard
-3. Click **"Add Workflow"** → **"Import from file"**
-4. Select the downloaded `.json` file
-5. Update all credentials and placeholder values
-6. Click **Publish**
+### ⚠️ IMPORTANT: API Keys & Credentials
 
----
+**The workflow JSON files in this repo have all API keys replaced with placeholders like:**
+- `YOUR_CLAUDE_API_KEY`
+- `YOUR_EMAIL_ADDRESS`
+- `YOUR_NEWSAPI_KEY`
 
-## Security Note
+### What to Replace When You Import:
 
-All API keys, email addresses, and personal credentials have been removed from these workflow files and replaced with placeholders. Never upload your real API keys to a public GitHub repository.
+| Placeholder | Replace With | Get It From |
+|-------------|--------------|-------------|
+| `YOUR_CLAUDE_API_KEY` | Your actual Claude API key | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| `YOUR_NEWSAPI_KEY` | Your NewsAPI key | [newsapi.org/account](https://newsapi.org/account) |
+| `YOUR_EMAIL_ADDRESS` | Your Gmail address | Your Gmail account |
+| `ALLOWED_SENDER_EMAIL` | Email address to allow | Sender's email |
 
----
+### ⚠️ NEVER Commit These to GitHub:
 
-## What I Learned
+❌ **Don't commit:**
+- Real API keys
+- `.env` files with credentials
+- Workflow files with real keys
+- Screenshots showing API keys
 
-- Building multi-node automation workflows in n8n
-- Connecting Claude AI via HTTP Request nodes using the Anthropic API
-- Using Gmail Trigger and Gmail Send nodes for email automation
-- Filtering workflow execution with IF nodes
-- Scheduling workflows with the Schedule Trigger node
-- Handling JSON safely using `JSON.stringify()` for special characters
+✅ **Always use:**
+- Placeholders in public repos
+- n8n's credential system (not hardcoded keys)
+- `.gitignore` for sensitive files
 
----
+### If You Accidentally Expose a Key:
 
-## Author
+1. **Immediately revoke it:**
+   - Claude keys: [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+   - NewsAPI: [newsapi.org/account](https://newsapi.org/account)
+2. **Create a new key**
+3. **Update your workflow** with the new key
+4. **Never reuse** exposed keys
 
-Built by **Saranya Chandrasekar** — AI student learning automation and Claude AI integration.
+### Recommended `.gitignore`:
 
----
+Create a `.gitignore` file in your repo with:
 
-## License
-
-Feel free to use and modify these workflows for your own projects.
