@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "sendTo": "saranchandru1188@gmail.com",
+        "sendTo": "YOUR_GMAIL_CREDENTIAL_ID",
         "subject": "={{ $json.subject }}",
         "message": "={{ $json.emailBody }}",
         "options": {}
