@@ -2,6 +2,8 @@
 
 A collection of AI-powered automation workflows built with [n8n](https://n8n.io) and [Claude AI](https://anthropic.com) by a student learning AI automation.
 
+⚠️ **SECURITY WARNING:** All workflow files contain placeholders instead of real API keys. Never commit actual credentials to GitHub. See [Security Best Practices](#security-best-practices) below.
+
 ---
 
 ## Workflows
