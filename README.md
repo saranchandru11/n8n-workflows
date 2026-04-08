@@ -24,7 +24,7 @@ Automatically reads incoming emails and replies using Claude AI.
 4. Publish the workflow
 
 ---
-2. Email Summariser
+### 2. Email Summariser
 Reads your inbox and summarizes long emails into short bullet points using Claude AI.
 
 **How it works:**
