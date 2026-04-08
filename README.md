@@ -17,8 +17,7 @@ Reads your inbox and summarizes long emails into short bullet points using Claud
 
 **Nodes used:** Gmail Trigger → Edit Fields → IF → HTTP Request (Claude) → Edit Fields → Gmail Send
 
-**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/e77818ae8ffc4438b393df2f95165f94)
-
+**Demo Video:** [▶️ Watch Demo]-(https://www.loom.com/share/2231a0ffa9054e749d5f2a5290243c29)
 **Setup:**
 1. Add your Gmail credential in n8n
 2. Replace `YOUR_CLAUDE_API_KEY` with your Anthropic API key
@@ -39,7 +38,7 @@ Fetches the latest AI news every morning and sends a Claude-summarized digest to
 
 **Nodes used:** Schedule Trigger → HTTP Request (NewsAPI) → HTTP Request (Claude) → Gmail Send
 
-**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/4c0dc0e91fa345e59deaa3e8218c6716)
+**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/ab4185e57da341eaa894d26c7fb472c8)
 
 **Setup:**
 1. Get a free API key from [newsapi.org](https://newsapi.org)
@@ -60,6 +59,7 @@ Automatically reads incoming emails and replies using Claude AI.
 - Gmail Send node delivers the reply automatically
 
 **Nodes used:** Gmail Trigger → Edit Fields → IF → HTTP Request (Claude) → Edit Fields → Gmail Send
+**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/6214c557b0744e5d8942919d37781edb)
 
 **Setup:**
 1. Add your Gmail credential in n8n
@@ -85,7 +85,20 @@ Daily email alerts for entry-level AI/ML jobs (0-2 years experience)
    - Gmail (OAuth2)
    - OpenAI API key (optional)
 3. Activate workflow
+## 🛠️ Workflow Architecture
 
+### Nodes Used:
+
+| Node | Purpose | Configuration |
+|------|---------|---------------|
+| **Schedule Trigger** | Starts workflow daily | 9:00 AM every day |
+| **HTTP Request (RemoteOK)** | Fetch jobs from RemoteOK | `GET https://remoteok.com/api` |
+| **HTTP Request (Remotive)** | Fetch jobs from Remotive | `GET https://remotive.com/api/remote-jobs` |
+| **Merge** | Combine job sources | Append mode |
+| **Code (JavaScript)** | Filter & format jobs | Custom filtering logic |
+| **Gmail** | Send email | OAuth2 authentication |
+
+**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/03d3e50f07a54a7fb8f6c5714465585f)
 ## Job Sources
 - RemoteOK API
 - Remotive API
