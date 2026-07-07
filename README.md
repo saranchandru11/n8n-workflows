@@ -139,8 +139,7 @@ PORCH Morrisville NC.
 4. Add Anthropic Claude API key
 5. Activate workflow — runs automatically 24/7
 
-📂 [Full project details](.food-drive-volunteer-automation/Food Drive README.md)
-
+📂 [Full project details](food-drive-volunteer-automation/Food Drive README.md)
 ---
 ---
 
