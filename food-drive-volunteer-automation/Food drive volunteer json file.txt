@@ -1,0 +1,142 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1wA-UL98ZNR5cCTg9zbIdZKl6E11fgcUhtXcdflvv_3g/edit?gid=1324313071#gid=1324313071Hello Peppa. You're talking nonsense. No I'm not. She said in the olden days I was a baby. Well you were Peppa. Look here are some photos on the computer. Who do you think that is? It's Baby Alexander! Baby Alexander is Peppa's cousin. No that's you, the baby Peppa. Baby Peppa! Somebody sounds like they're having fun! Look Daddy, that's a picture of me as a baby! I remember it well! It was taken for our first date in this house.  What do you mean? When you and Betty moved into this house we put all our things on top of our car. We picked up some pictures of everything. You were a baby! You were a baby in my tummy. That's right and you and Suzy were brilliant jumping around. Then one day you saw something amazing. Pepper when you jump in large puddles you must wear your boots. You know what I mean?  Granny! Granny! Oh oh, the gate. The gate, there it is. I've just been very pleasant to you for once. Can't we use the gate too? Of course you can. I've made you both costumes. Look George! We need the stone",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1324313071,
+          "mode": "list",
+          "cachedResultName": "Form Responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wA-UL98ZNR5cCTg9zbIdZKl6E11fgcUhtXcdflvv_3g/edit#gid=1324313071"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -192
+      ],
+      "id": "8ba6a7b4-8233-412a-84d4-3f8ebef42571",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "UKndokLDpGh2qvzD",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 300,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a warm, personalized welcome email for a new volunteer who just signed up for a community food drive. Their name is {{ $json['Full Name'] }}, they signed up as a {{ $json['I want to sign up as a'] }}, in the {{ $json['Neighborhood/Area'] }} neighborhood. Keep it friendly, brief, and thank them for joining. Just write the email body, no subject line needed.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -400,
+        -208
+      ],
+      "id": "cfd7426f-327f-4e12-9b54-d0d8e4e614c9",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "etSJldinXOm5z6QR",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Google Sheets Trigger').item.json['Email Address'] }}",
+        "subject": "=Welcome to the Community Food Drive, {{ $('Google Sheets Trigger').item.json['Full Name'] }}!",
+        "emailType": "text",
+        "message": "={{ $json.content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -128,
+        -192
+      ],
+      "id": "b5d2ea71-86a3-4b6f-8e12-6ebf4143cdc6",
+      "name": "Send a message",
+      "webhookId": "74f7815a-20b0-4b7c-afc4-6b215f040dc7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yPE40FmCcv8lWJL6",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "113152f4-0b86-4d8b-8405-44ce20960c1a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "63e93859df00a89629b7c57fae136556fd11bbedc471fe6f3941e6b092c22a3e"
+  },
+  "nodeGroups": [],
+  "id": "NvnaTFCUwXn46AJc",
+  "tags": []
+}
