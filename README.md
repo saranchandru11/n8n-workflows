@@ -116,6 +116,30 @@ Edit Code node to adjust:
 - Experience level
 - Email time
 
+---### 5. 🍎 Community Food Drive Volunteer Automation
+AI-powered welcome emails for community food drive volunteers — 
+built as a proof-of-concept for nonprofit organisations like 
+PORCH Morrisville NC.
+
+**How it works:**
+- Google Sheets Trigger watches for new volunteer sign-ups
+- Claude AI generates a warm, personalised welcome email using 
+  the volunteer's real name, neighborhood and role
+- Gmail sends the email automatically — zero human effort needed
+
+**Nodes used:** Google Sheets Trigger → HTTP Request (Claude API) → Gmail
+
+**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/2f79f135c2b942b680ee33e38821bef9)
+
+**Setup:**
+1. Self-hosted n8n via Docker (free, no subscription needed)
+2. Connect Google Sheets credential (Google Cloud OAuth)
+3. Connect Gmail credential
+4. Add Anthropic Claude API key
+5. Activate workflow — runs automatically 24/7
+
+📂 [Full project details](./food-drive-volunteer-automation/README.md)
+
 ---
 
 ## Prerequisites
