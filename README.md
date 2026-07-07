@@ -116,7 +116,8 @@ Edit Code node to adjust:
 - Experience level
 - Email time
 
----### 5.Community Food Drive Volunteer Automation
+---
+### 5. 🍎 Community Food Drive Volunteer Automation
 AI-powered welcome emails for community food drive volunteers — 
 built as a proof-of-concept for nonprofit organisations like 
 PORCH Morrisville NC.
@@ -140,6 +141,7 @@ PORCH Morrisville NC.
 
 📂 [Full project details](./food-drive-volunteer-automation/README.md)
 
+---
 ---
 
 ## Prerequisites
