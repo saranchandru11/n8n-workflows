@@ -1,0 +1,483 @@
+{
+  "name": "IT Support Ticket Triage System",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1-ZAjAzph2sUiG5BYjyPNYedv-CcnmQs_89fASyhK95c/edit?resourcekey=&gid=21201377",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2120137739,
+          "mode": "list",
+          "cachedResultName": "Form Responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZAjAzph2sUiG5BYjyPNYedv-CcnmQs_89fASyhK95c/edit#gid=2120137739"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -256
+      ],
+      "id": "a2c54307-e471-496f-9805-1d7a3774a09f",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "UKndokLDpGh2qvzD",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "x-api-key",
+              "value": "YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":200,\"messages\":[{\"role\":\"user\",\"content\":\"Classify this IT support ticket. Reply in JSON only with exactly these fields: {\\\"priority\\\": \\\"High\\\", \\\"category\\\": \\\"Network\\\", \\\"sentiment\\\": \\\"Urgent\\\"}. Use High priority if user mentions urgent, deadline, important meeting, cannot work, or time sensitive. Issue: {{ $json['Issue Title'] }}. Urgency reported: {{ $json['Urgency'] }}. Description: {{ $json['Issue Description'] }}.\"}]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -512,
+        -256
+      ],
+      "id": "b5ab73d8-68d4-4eda-af19-6d541fd283bd",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "etSJldinXOm5z6QR",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\":\"claude-sonnet-4-6\",\"max_tokens\":500,\"messages\":[{\"role\":\"user\",\"content\":\"You are an IT support assistant. Write a professional response email. Name: {{ $('Google Sheets Trigger').item.json['Full Name'] }}. Issue: {{ $('Google Sheets Trigger').item.json['Issue Title'] }}. Solution: Check VPN, restart network adapter, clear browser cache, reset password as relevant. Be empathetic and professional.\"}]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -352,
+        -256
+      ],
+      "id": "f8fa4206-191d-407c-be02-41ef63318f86",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "etSJldinXOm5z6QR",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Google Sheets Trigger').item.json['Email address'] }}",
+        "subject": "=RE: IT Support Ticket - {{ $('Google Sheets Trigger').item.json['Issue Title'] }}",
+        "emailType": "text",
+        "message": "={{ $('HTTP Request1').item.json.content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -208,
+        -256
+      ],
+      "id": "8eb5d1b4-3bec-459d-84d4-364339aa6dae",
+      "name": "Send a message",
+      "webhookId": "ee418fb3-9d71-4595-99d8-1ef08aeac866",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yPE40FmCcv8lWJL6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7c6868ed-1acf-4518-9768-6428530583c0",
+              "leftValue": "={{ $('HTTP Request').item.json.content[0].text }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "ab8ba02c-71ff-4e6f-b4ce-5913728fc30d",
+              "leftValue": "={{ $('HTTP Request').item.json.content[0].text }}",
+              "rightValue": "Critical",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -48,
+        -256
+      ],
+      "id": "03dc5d30-bd0c-4e98-b427-3385bfe98fe4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "Name": "={{ $('Google Sheets Trigger').item.json['Full Name'] }}",
+            "Email": "={{ $('Google Sheets Trigger').item.json['Email address'] }}",
+            "Issue": "={{ $('Google Sheets Trigger').item.json['Issue Title'] }}",
+            "Classification": "={{ $('HTTP Request').item.json.content[0].text }}",
+            "Priority Level": "HIGH/CRITICAL"
+          },
+          "matchingColumns": [
+            "F"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Classification",
+              "displayName": "Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority Level",
+              "displayName": "Priority Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        -384
+      ],
+      "id": "b6a64d6d-1d60-4df3-92e2-693b5a5836c7",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DFzQRXHvLhFu7Xh7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "Name": "={{ $('Google Sheets Trigger').item.json['Full Name'] }}",
+            "Email": "={{ $('Google Sheets Trigger').item.json['Email address'] }}",
+            "Issue": "={{ $('Google Sheets Trigger').item.json['Issue Title'] }}",
+            "Classification": "={{ $('HTTP Request').item.json.content[0].text }}",
+            "Priority Level": "LOW/MEDIUM"
+          },
+          "matchingColumns": [
+            "F"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Classification",
+              "displayName": "Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority Level",
+              "displayName": "Priority Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        192,
+        -192
+      ],
+      "id": "b0207354-bc60-4709-9a21-8f0fc5e0e4be",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DFzQRXHvLhFu7Xh7",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1ff93b1e-ba3f-43c7-946c-188eed05bac5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "63e93859df00a89629b7c57fae136556fd11bbedc471fe6f3941e6b092c22a3e"
+  },
+  "nodeGroups": [],
+  "id": "czuu2cYQwtb56Zix",
+  "tags": []
+}
