@@ -142,7 +142,17 @@ PORCH Morrisville NC.
 📂 [Full project details](./food-drive-volunteer-automation/Food%20Drive%20README.md)
 ---
 ---
+### 6. 🎫 AI-Powered IT Support Ticket Triage System
+Intelligent automation that classifies IT support tickets by priority, 
+generates personalised responses using Claude AI and a knowledge base, 
+and automatically routes and logs every ticket.
 
+**Nodes used:** Google Sheets Trigger → Claude API (Classification) → 
+Claude API (Response) → Gmail → IF node → Google Sheets (Logging)
+
+**Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/6f26d29f022048c4ac5510e1032ee705)
+
+📂 [Full project details](./it-support-ticket-triage/README.md)
 ## Prerequisites
 
 - [n8n](https://n8n.io) account (cloud or self-hosted)
