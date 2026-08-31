@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ticket Triage</title>
+<meta name="description" content="Paste a real support ticket and watch it get classified and answered live — a hosted rebuild of an n8n + Claude API automation by Saranya Chandrasekar." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #f5f7fa;
+    --ink: #1b2430;
+    --ink-dim: #5b6472;
+    --line: #dde2e8;
+    --accent: #c85a1f;
+    --accent-ink: #ffffff;
+    --accent-soft: #f7e6da;
+    --critical: #b3372a;
+    --critical-soft: #fbe4e1;
+    --high: #c07a1f;
+    --high-soft: #faedd8;
+    --medium: #2c6a9c;
+    --medium-soft: #dfeaf3;
+    --low: #3f7d5c;
+    --low-soft: #e1efe7;
+    --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 8px 24px -12px rgba(20, 24, 31, 0.18);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161c;
+      --surface: #1a2029;
+      --surface-2: #212833;
+      --ink: #e9ebee;
+      --ink-dim: #9aa3af;
+      --line: #2b3340;
+      --accent: #e8823f;
+      --accent-ink: #1a1006;
+      --accent-soft: #3a2517;
+      --critical: #e07566;
+      --critical-soft: #3a1f1c;
+      --high: #e0ab5c;
+      --high-soft: #3a2e17;
+      --medium: #6fa8d6;
+      --medium-soft: #1b2c3a;
+      --low: #77b596;
+      --low-soft: #1b2e24;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #12161c;
+    --surface: #1a2029;
+    --surface-2: #212833;
+    --ink: #e9ebee;
+    --ink-dim: #9aa3af;
+    --line: #2b3340;
+    --accent: #e8823f;
+    --accent-ink: #1a1006;
+    --accent-soft: #3a2517;
+    --critical: #e07566;
+    --critical-soft: #3a1f1c;
+    --high: #e0ab5c;
+    --high-soft: #3a2e17;
+    --medium: #6fa8d6;
+    --medium-soft: #1b2c3a;
+    --low: #77b596;
+    --low-soft: #1b2e24;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  a { color: var(--accent); }
+
+  .wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+  }
+
+  header.top {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 36px;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .eyebrow .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--low);
+    box-shadow: 0 0 0 3px var(--low-soft);
+  }
+
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  h1 .accentword { color: var(--accent); }
+
+  p.lede {
+    max-width: 62ch;
+    color: var(--ink-dim);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .byline {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+  .byline a { color: var(--ink); text-decoration-color: var(--line); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .panel-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    resize: vertical;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 14.5px;
+    line-height: 1.55;
+    padding: 14px;
+  }
+  textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .example-chip {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .example-chip:hover { border-color: var(--accent); color: var(--ink); }
+  .example-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  button.primary {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  button.primary:hover { filter: brightness(1.06); }
+  button.primary:disabled { opacity: 0.55; cursor: default; }
+  button.primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .hint { font-size: 12.5px; color: var(--ink-dim); }
+
+  .spinner {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: currentColor;
+    animation: spin 0.7s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Result panel */
+  .result-empty {
+    color: var(--ink-dim);
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 30px 4px;
+    text-align: left;
+  }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+  .badge.priority-Critical { background: var(--critical-soft); color: var(--critical); }
+  .badge.priority-High { background: var(--high-soft); color: var(--high); }
+  .badge.priority-Medium { background: var(--medium-soft); color: var(--medium); }
+  .badge.priority-Low { background: var(--low-soft); color: var(--low); }
+  .badge.neutral { background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--line); }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field .k { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-dim); }
+  .field .v { font-size: 14.5px; line-height: 1.5; }
+
+  .confidence-row { display: flex; align-items: center; gap: 10px; }
+  .confidence-track {
+    flex: 1; height: 6px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .confidence-fill {
+    height: 100%; background: var(--accent); border-radius: 999px;
+    transition: width 0.5s ease;
+  }
+  .confidence-num { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-dim); min-width: 34px; text-align: right; }
+
+  .reply-box {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 14.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .error-box {
+    background: var(--critical-soft);
+    color: var(--critical);
+    border: 1px solid var(--critical);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  footer {
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  footer a { color: var(--ink-dim); }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="eyebrow"><span class="dot"></span> Live — every ticket below is triaged by Claude in real time</div>
+      <h1>Paste a ticket. Watch it get <span class="accentword">triaged</span>.</h1>
+      <p class="lede">
+        This is a hosted rebuild of my IT Support Ticket Triage System — the same n8n + Claude API
+        automation I use to classify tickets by priority, category and sentiment, and draft a first
+        reply, in seconds instead of minutes. Try it on a real ticket, or one of the examples below.
+      </p>
+      <p class="byline">Built by <a href="https://www.linkedin.com/in/saranya-chandrasekar-497a3328a" target="_blank" rel="noopener">Saranya Chandrasekar</a> · <a href="https://github.com/saranchandru11" target="_blank" rel="noopener">github.com/saranchandru11</a></p>
+    </header>
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="input-label">
+        <div class="panel-label" id="input-label">01 · Ticket</div>
+        <textarea id="ticketInput" placeholder="Paste a support ticket, email, or chat message here…"></textarea>
+        <div class="examples" id="examples"></div>
+        <div class="actions">
+          <button class="primary" id="triageBtn" type="button">
+            <span id="btnLabel">Triage it</span>
+          </button>
+          <span class="hint">Sent to Claude for this one classification only — nothing is stored.</span>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="result-label">
+        <div class="panel-label" id="result-label">02 · Triage result</div>
+        <div id="resultArea">
+          <div class="result-empty">Paste a ticket on the left and click <strong>Triage it</strong> — priority, category, sentiment, and a draft reply will appear here, usually within a couple of seconds.</div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <span>AI Automation Specialist · n8n · Claude API · Prompt Engineering</span>
+      <span>Source ticket data never stored — each request is stateless.</span>
+    </footer>
+  </div>
+
+<script>
+  const EXAMPLES = [
+    {
+      label: "VPN down, exec",
+      text: "Hi, my VPN has been dropping every few minutes since this morning and I have a board call in 20 minutes. This is the third day in a row. I need this fixed NOW, I cannot join the call from my phone hotspot again."
+    },
+    {
+      label: "Password reset",
+      text: "Hey team, I got locked out of my email after too many login attempts. Could someone reset my password when they get a chance today? Not urgent, I can use my phone for now."
+    },
+    {
+      label: "Printer + thank you",
+      text: "Just wanted to say thanks for fixing the printer on the 3rd floor last week — it's been working great. One small thing, the color cartridge light is blinking again, might need a look when you have time."
+    }
+  ];
+
+  const examplesEl = document.getElementById("examples");
+  const ticketInput = document.getElementById("ticketInput");
+  const triageBtn = document.getElementById("triageBtn");
+  const btnLabel = document.getElementById("btnLabel");
+  const resultArea = document.getElementById("resultArea");
+
+  EXAMPLES.forEach((ex) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "example-chip";
+    chip.textContent = ex.label;
+    chip.addEventListener("click", () => {
+      ticketInput.value = ex.text;
+      ticketInput.focus();
+    });
+    examplesEl.appendChild(chip);
+  });
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function renderEmpty(msg) {
+    resultArea.innerHTML = `<div class="result-empty">${escapeHtml(msg)}</div>`;
+  }
+
+  function renderError(msg) {
+    resultArea.innerHTML = `<div class="error-box">${escapeHtml(msg)}</div>`;
+  }
+
+  function renderResult(r) {
+    const priority = ["Critical", "High", "Medium", "Low"].includes(r.priority) ? r.priority : "Medium";
+    const sentiment = r.sentiment || "Neutral";
+    const category = r.category || "Uncategorized";
+    const confidence = Math.max(0, Math.min(100, Number(r.confidence) || 0));
+    const reasoning = r.reasoning || "";
+    const reply = r.suggested_reply || "";
+
+    resultArea.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div class="badges">
+          <span class="badge priority-${priority}">${priority} priority</span>
+          <span class="badge neutral">${escapeHtml(category)}</span>
+          <span class="badge neutral">${escapeHtml(sentiment)}</span>
+        </div>
+        <div class="field">
+          <span class="k">Confidence</span>
+          <div class="confidence-row">
+            <div class="confidence-track"><div class="confidence-fill" style="width:${confidence}%"></div></div>
+            <span class="confidence-num mono">${confidence}%</span>
+          </div>
+        </div>
+        <div class="field">
+          <span class="k">Why this priority</span>
+          <span class="v">${escapeHtml(reasoning)}</span>
+        </div>
+        <div class="field">
+          <span class="k">Suggested reply</span>
+          <div class="reply-box">${escapeHtml(reply)}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function triage() {
+    const ticket = ticketInput.value.trim();
+    if (!ticket) {
+      renderError("Paste a ticket first — even a couple of sentences works.");
+      return;
+    }
+
+    triageBtn.disabled = true;
+    btnLabel.innerHTML = `<span class="spinner" aria-hidden="true"></span> Triaging…`;
+    renderEmpty("Sending to Claude…");
+
+    try {
+      const resp = await fetch("/api/classify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ticket }),
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        renderError(data.error || "Something went wrong classifying that ticket.");
+        return;
+      }
+      renderResult(data);
+    } catch (err) {
+      renderError("Couldn't reach the triage service. Check your connection and try again.");
+    } finally {
+      triageBtn.disabled = false;
+      btnLabel.textContent = "Triage it";
+    }
+  }
+
+  triageBtn.addEventListener("click", triage);
+  ticketInput.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") triage();
+  });
+</script>
+</body>
+</html>
