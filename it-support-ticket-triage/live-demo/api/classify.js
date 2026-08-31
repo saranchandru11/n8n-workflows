@@ -59,7 +59,7 @@ Respond with ONLY a JSON object, no markdown fences, no commentary, in exactly t
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 500,
+        max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: "user", content: ticket.trim() }],
       }),
@@ -74,12 +74,38 @@ Respond with ONLY a JSON object, no markdown fences, no commentary, in exactly t
     const data = await upstream.json();
     const raw = data?.content?.[0]?.text ?? "";
 
+    // Claude is asked to return raw JSON, but sometimes wraps it in a
+    // ```json ... ``` fence or adds a stray sentence around it. Strip fences
+    // and pull out the first {...} block before parsing, instead of failing
+    // on the very first JSON.parse attempt.
+    function extractJson(text) {
+      let t = text.trim();
+      const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      if (fenced) t = fenced[1].trim();
+      const start = t.indexOf("{");
+      const end = t.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        t = t.slice(start, end + 1);
+      }
+      return t;
+    }
+
     let parsed;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      res.status(502).json({ error: "Could not parse Claude's response as JSON.", raw });
-      return;
+      try {
+        parsed = JSON.parse(extractJson(raw));
+      } catch {
+        res.status(502).json({
+          error:
+            data?.stop_reason === "max_tokens"
+              ? "Claude's response got cut off before it finished. Try a shorter ticket, or try again."
+              : "Could not parse Claude's response as JSON.",
+          raw: raw.slice(0, 500),
+        });
+        return;
+      }
     }
 
     res.status(200).json(parsed);
