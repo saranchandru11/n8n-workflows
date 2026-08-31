@@ -1,0 +1,9 @@
+{
+  "name": "ticket-triage-live",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live, hosted rebuild of the IT Support Ticket Triage System (n8n + Claude API) — paste a ticket, get a real-time triage from Claude.",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
