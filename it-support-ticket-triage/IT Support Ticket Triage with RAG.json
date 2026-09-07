@@ -1,0 +1,587 @@
+{
+  "name": "IT Support Ticket Triage (RAG)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1-ZAjAzph2sUiG5BYjyPNYedv-CcnmQs_89fASyhK95c/edit?resourcekey=&gid=21201377",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2120137739,
+          "mode": "list",
+          "cachedResultName": "Form Responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-ZAjAzph2sUiG5BYjyPNYedv-CcnmQs_89fASyhK95c/edit#gid=2120137739"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -256
+      ],
+      "id": "a2c54307-e471-496f-9805-1d7a3774a09f",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "UKndokLDpGh2qvzD",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "x-api-key",
+              "value": "YOUR_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":200,\"messages\":[{\"role\":\"user\",\"content\":\"Classify this IT support ticket. Reply in JSON only with exactly these fields: {\\\"priority\\\": \\\"High\\\", \\\"category\\\": \\\"Network\\\", \\\"sentiment\\\": \\\"Urgent\\\"}. Use High priority if user mentions urgent, deadline, important meeting, cannot work, or time sensitive. Issue: {{ $json['Issue Title'] }}. Urgency reported: {{ $json['Urgency'] }}. Description: {{ $json['Issue Description'] }}.\"}]}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -512,
+        -256
+      ],
+      "id": "b5ab73d8-68d4-4eda-af19-6d541fd283bd",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "etSJldinXOm5z6QR",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 700, system: 'You are an IT support assistant writing a reply to an employee. Be empathetic, concise and professional.\\n\\n' + $json.grounding_instruction, messages: [{ role: 'user', content: 'Name: ' + $('Google Sheets Trigger').first().json['Full Name'] + '\\nIssue: ' + $json.ticket_text }] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        340,
+        -256
+      ],
+      "id": "f8fa4206-191d-407c-be02-41ef63318f86",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "etSJldinXOm5z6QR",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Google Sheets Trigger').item.json['Email address'] }}",
+        "subject": "=RE: IT Support Ticket - {{ $('Google Sheets Trigger').item.json['Issue Title'] }}",
+        "emailType": "text",
+        "message": "={{ $('HTTP Request1').item.json.content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -208,
+        -256
+      ],
+      "id": "8eb5d1b4-3bec-459d-84d4-364339aa6dae",
+      "name": "Send a message",
+      "webhookId": "ee418fb3-9d71-4595-99d8-1ef08aeac866",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yPE40FmCcv8lWJL6",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7c6868ed-1acf-4518-9768-6428530583c0",
+              "leftValue": "={{ $('HTTP Request').item.json.content[0].text }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "ab8ba02c-71ff-4e6f-b4ce-5913728fc30d",
+              "leftValue": "={{ $('HTTP Request').item.json.content[0].text }}",
+              "rightValue": "Critical",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -48,
+        -256
+      ],
+      "id": "03dc5d30-bd0c-4e98-b427-3385bfe98fe4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "Name": "={{ $('Google Sheets Trigger').item.json['Full Name'] }}",
+            "Email": "={{ $('Google Sheets Trigger').item.json['Email address'] }}",
+            "Issue": "={{ $('Google Sheets Trigger').item.json['Issue Title'] }}",
+            "Classification": "={{ $('HTTP Request').item.json.content[0].text }}",
+            "Priority Level": "HIGH/CRITICAL",
+            "KB Sources": "={{ $('Retrieve matching articles').first().json.kb_ids || 'none' }}",
+            "Retrieval Evidence": "={{ $('Retrieve matching articles').first().json.retrieval_evidence }}"
+          },
+          "matchingColumns": [
+            "F"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Classification",
+              "displayName": "Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority Level",
+              "displayName": "Priority Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "KB Sources",
+              "displayName": "KB Sources",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Retrieval Evidence",
+              "displayName": "Retrieval Evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        -384
+      ],
+      "id": "b6a64d6d-1d60-4df3-92e2-693b5a5836c7",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DFzQRXHvLhFu7Xh7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jUAjiFyGNq5ccMGaAa3rcnk8U3GtCnH94BtbRrFXvzI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now }}",
+            "Name": "={{ $('Google Sheets Trigger').item.json['Full Name'] }}",
+            "Email": "={{ $('Google Sheets Trigger').item.json['Email address'] }}",
+            "Issue": "={{ $('Google Sheets Trigger').item.json['Issue Title'] }}",
+            "Classification": "={{ $('HTTP Request').item.json.content[0].text }}",
+            "Priority Level": "LOW/MEDIUM",
+            "KB Sources": "={{ $('Retrieve matching articles').first().json.kb_ids || 'none' }}",
+            "Retrieval Evidence": "={{ $('Retrieve matching articles').first().json.retrieval_evidence }}"
+          },
+          "matchingColumns": [
+            "F"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Classification",
+              "displayName": "Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority Level",
+              "displayName": "Priority Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "KB Sources",
+              "displayName": "KB Sources",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Retrieval Evidence",
+              "displayName": "Retrieval Evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        192,
+        -192
+      ],
+      "id": "b0207354-bc60-4709-9a21-8f0fc5e0e4be",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "DFzQRXHvLhFu7Xh7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_KNOWLEDGE_BASE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "IT Knowledge Base"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -100,
+        -256
+      ],
+      "id": "rag-fetch-knowledge-base",
+      "name": "Fetch knowledge base"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// RETRIEVAL STEP — selects which knowledge base articles the model is allowed to see.\n//\n// Input:  every row of the KB sheet, plus the ticket text and the classifier's category.\n// Output: one item carrying only the top-ranked articles, formatted for the prompt.\n//\n// Ranking is BM25, the standard lexical relevance function. For a corpus of ~10 short,\n// keyword-dense articles this outperforms embedding similarity, costs nothing, adds no\n// second API dependency, and is deterministic — the same ticket always retrieves the\n// same articles, which matters when an auditor asks why a given answer was produced.\n\nconst K1 = 1.5;   // term-frequency saturation\nconst B = 0.75;   // document-length normalisation\nconst TOP_K = 2;\nconst MIN_SCORE = 4.0; // below this, treat as \"no match\" rather than force a weak one\n\nconst STOPWORDS = new Set(['the','a','an','and','or','but','is','are','was','were','be','been',\n'being','to','of','in','on','at','for','with','from','by','as','it','its','this','that','these',\n'those','i','me','my','we','our','you','your','he','she','they','them','have','has','had','do',\n'does','did','will','would','can','could','should','am','so','if','then','there','here','when',\n'get','got','just','please','thanks','hi','hello','team','morning','afternoon']);\n\nfunction stem(t) {\n  const undouble = (b) => (/([bdfglmnprt])\\1$/.test(b) ? b.slice(0, -1) : b);\n  if (t.length > 4 && t.endsWith('ing')) { const b = undouble(t.slice(0, -3)); if (b.length >= 3) return b; }\n  if (t.length > 4 && t.endsWith('ed'))  { const b = undouble(t.slice(0, -2)); if (b.length >= 3) return b; }\n  if (t.length > 4 && t.endsWith('es')) return t.slice(0, -2);\n  if (t.length > 3 && t.endsWith('s') && !t.endsWith('ss')) return t.slice(0, -1);\n  return t;\n}\n\nfunction tokenize(text) {\n  return String(text || '')\n    .toLowerCase()\n    .replace(/[^a-z0-9\\s-]/g, ' ')\n    .split(/\\s+/)\n    .filter((t) => t.length > 1 && !STOPWORDS.has(t))\n    .map(stem);\n}\n\n// --- Gather the query ---------------------------------------------------------\nconst trigger = $('Google Sheets Trigger').first().json;\nconst ticketText = [trigger['Issue Title'], trigger['Issue Description']].filter(Boolean).join('. ');\n\n// The classifier ran before this node; reuse its category as a tie-breaker.\nlet predictedCategory = '';\ntry {\n  const classText = $('HTTP Request').first().json.content[0].text;\n  const start = classText.indexOf('{');\n  const end = classText.lastIndexOf('}');\n  if (start !== -1 && end > start) {\n    predictedCategory = JSON.parse(classText.slice(start, end + 1)).category || '';\n  }\n} catch (e) {\n  predictedCategory = '';\n}\n\n// --- Build the corpus from the sheet rows -------------------------------------\nconst docs = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row['ID'] && row['Title'])\n  .map((row) => ({\n    id: String(row['ID']).trim(),\n    title: String(row['Title'] || ''),\n    category: String(row['Category'] || ''),\n    solution: String(row['Solution'] || ''),\n    escalation: String(row['Escalation'] || ''),\n    // Solution steps are excluded from the searchable text so that generic\n    // remediation language (\"restart\", \"check\") does not dominate ranking.\n    terms: tokenize([row['Title'], row['Category'], row['Keywords'], row['Symptoms']].join(' ')),\n  }));\n\nconst queryTerms = tokenize(ticketText);\n\nlet ranked = [];\nif (docs.length && queryTerms.length) {\n  const N = docs.length;\n  const avgLen = docs.reduce((s, d) => s + d.terms.length, 0) / N;\n\n  const df = new Map();\n  for (const term of new Set(queryTerms)) {\n    df.set(term, docs.filter((d) => d.terms.includes(term)).length);\n  }\n\n  ranked = docs.map((d) => {\n    let score = 0;\n    for (const term of new Set(queryTerms)) {\n      const n = df.get(term) || 0;\n      if (n === 0) continue;\n      const tf = d.terms.filter((t) => t === term).length;\n      if (tf === 0) continue;\n      const idf = Math.max(0, Math.log(1 + (N - n + 0.5) / (n + 0.5)));\n      score += idf * ((tf * (K1 + 1)) / (tf + K1 * (1 - B + B * (d.terms.length / avgLen))));\n    }\n    // A category the classifier agreed on is corroboration, not proof — a modest\n    // boost that can never promote an article with zero term overlap.\n    if (predictedCategory && d.category.toLowerCase() === predictedCategory.toLowerCase() && score > 0) {\n      score *= 1.25;\n    }\n    return { ...d, score: Number(score.toFixed(3)) };\n  })\n  .filter((d) => d.score >= MIN_SCORE)\n  .sort((a, b) => b.score - a.score)\n  .slice(0, TOP_K);\n}\n\n// --- Format for the prompt ----------------------------------------------------\nconst grounded = ranked.length > 0;\n\nconst kbContext = grounded\n  ? ranked.map((r) =>\n      '[' + r.id + '] ' + r.title + ' (' + r.category + ')\\n' +\n      'Resolution steps:\\n' + r.solution + '\\n' +\n      'Escalation: ' + r.escalation\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nconst instruction = grounded\n  ? 'You have been given the knowledge base articles below, retrieved as the closest matches to ' +\n    'this ticket. Base any remediation steps ONLY on these articles. Do not add steps from your ' +\n    'own general knowledge. Reference the article ID you relied on at the end of the email as ' +\n    '\"Reference: <ID>\".\\n\\n' + kbContext\n  : 'No knowledge base article matched this ticket. Do NOT invent remediation steps. Acknowledge ' +\n    'the issue, confirm it is being routed to the right team, and leave technical detail out.';\n\nreturn [{\n  json: {\n    ticket_text: ticketText,\n    predicted_category: predictedCategory,\n    grounded,\n    kb_ids: ranked.map((r) => r.id).join(', '),\n    kb_scores: ranked.map((r) => r.id + ':' + r.score).join(', '),\n    kb_count_searched: docs.length,\n    kb_context: kbContext,\n    grounding_instruction: instruction,\n    // Written to the ticket log so every automated reply has a traceable source.\n    retrieval_evidence: grounded\n      ? 'Grounded in ' + ranked.map((r) => r.id).join(' + ') + ' (BM25 ' + ranked.map((r) => r.score).join('/') + ') from ' + docs.length + ' articles'\n      : 'No KB match above threshold ' + MIN_SCORE + ' across ' + docs.length + ' articles — reply not grounded',\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -256
+      ],
+      "id": "rag-retrieve-articles",
+      "name": "Retrieve matching articles"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Fetch knowledge base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch knowledge base": {
+      "main": [
+        [
+          {
+            "node": "Retrieve matching articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve matching articles": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1ff93b1e-ba3f-43c7-946c-188eed05bac5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "63e93859df00a89629b7c57fae136556fd11bbedc471fe6f3941e6b092c22a3e"
+  },
+  "nodeGroups": [],
+  "id": "it-support-ticket-triage-rag",
+  "tags": []
+}

@@ -304,6 +304,44 @@
     white-space: pre-wrap;
   }
 
+  /* Retrieval trace */
+  .sources { display: flex; flex-direction: column; gap: 6px; }
+  .source {
+    display: flex; align-items: center; gap: 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 8px 10px;
+    background: var(--surface-2);
+    font-size: 13px;
+  }
+  .source.cited { border-color: var(--accent); background: var(--accent-soft); }
+  .source-id {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .source-title { flex: 1; color: var(--ink); }
+  .source-score {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; color: var(--ink-dim); white-space: nowrap;
+  }
+  .source-tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 6px; border-radius: 4px;
+    background: var(--accent); color: var(--accent-ink);
+    white-space: nowrap;
+  }
+  .ungrounded {
+    font-size: 13px; line-height: 1.5;
+    color: var(--high);
+    background: var(--high-soft);
+    border: 1px solid var(--high);
+    border-radius: 7px; padding: 9px 11px;
+  }
+
   .error-box {
     background: var(--critical-soft);
     color: var(--critical);
@@ -338,7 +376,9 @@
       <p class="lede">
         This is a hosted rebuild of my IT Support Ticket Triage System — the same n8n + Claude API
         automation I use to classify tickets by priority, category and sentiment, and draft a first
-        reply, in seconds instead of minutes. Try it on a real ticket, or one of the examples below.
+        reply, in seconds instead of minutes. Every reply is <strong>grounded in a retrieved knowledge
+        base</strong>: the ticket is matched against 10 support articles, and only the closest ones are
+        given to the model. You'll see exactly which article each answer came from.
       </p>
       <p class="byline">Built by <a href="https://www.linkedin.com/in/saranya-chandrasekar-497a3328a" target="_blank" rel="noopener">Saranya Chandrasekar</a> · <a href="https://github.com/saranchandru11" target="_blank" rel="noopener">github.com/saranchandru11</a></p>
     </header>
@@ -365,7 +405,7 @@
     </div>
 
     <footer>
-      <span>AI Automation Specialist · n8n · Claude API · Prompt Engineering</span>
+      <span>n8n · Claude API · Retrieval-augmented generation (BM25) · Prompt engineering</span>
       <span>Source ticket data never stored — each request is stateless.</span>
     </footer>
   </div>
@@ -383,6 +423,10 @@
     {
       label: "Printer + thank you",
       text: "Just wanted to say thanks for fixing the printer on the 3rd floor last week — it's been working great. One small thing, the color cartridge light is blinking again, might need a look when you have time."
+    },
+    {
+      label: "Nothing in the KB",
+      text: "Hi, could someone tell me what time the cafeteria stops serving lunch on Fridays? Also is the gym open over the holiday weekend?"
     }
   ];
 
@@ -448,8 +492,39 @@
           <span class="k">Suggested reply</span>
           <div class="reply-box">${escapeHtml(reply)}</div>
         </div>
+        ${renderRetrieval(r.retrieval)}
       </div>
     `;
+  }
+
+  // Shows what the retriever found and which articles the answer actually cited.
+  // An answer with no grounding is labelled as such rather than passed off as sourced.
+  function renderRetrieval(retrieval) {
+    if (!retrieval) return "";
+    const found = Array.isArray(retrieval.retrieved) ? retrieval.retrieved : [];
+
+    if (!found.length) {
+      return `
+        <div class="field">
+          <span class="k">Knowledge base</span>
+          <div class="ungrounded">No article matched this ticket, so no remediation steps were
+          supplied to the model — the reply acknowledges and routes instead of guessing.</div>
+        </div>`;
+    }
+
+    const rows = found.map((s) => `
+      <div class="source ${s.cited ? "cited" : ""}">
+        <span class="source-id">${escapeHtml(s.id)}</span>
+        <span class="source-title">${escapeHtml(s.title)}</span>
+        <span class="source-score">${Number(s.score).toFixed(1)}</span>
+        ${s.cited ? `<span class="source-tag">used</span>` : ""}
+      </div>`).join("");
+
+    return `
+      <div class="field">
+        <span class="k">Retrieved from knowledge base · BM25 ranked</span>
+        <div class="sources">${rows}</div>
+      </div>`;
   }
 
   async function triage() {
