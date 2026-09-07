@@ -26,6 +26,53 @@
 
 import { retrieve, buildContext } from "../lib/knowledge-base.js";
 
+/**
+ * Fallback used only when no ANTHROPIC_API_KEY is configured, so the interface
+ * stays explorable without credentials.
+ *
+ * Note what is and isn't simulated: retrieval is genuine — BM25 runs locally and
+ * needs no API — so the scores and cited articles below are real output. Only the
+ * classification and the written reply are canned, and the UI says so.
+ */
+function demoResponse(ticket, retrieved) {
+  const text = ticket.toLowerCase();
+  const urgent = /(urgent|asap|immediately|critical|down|outage|cannot work|blocked|all (customers|users)|board call)/.test(text);
+  const calm = /(no rush|not urgent|when you get a chance|whenever|no hurry)/.test(text);
+  const grateful = /(thank|thanks|appreciate|great job)/.test(text);
+
+  const top = retrieved[0];
+  const priority = urgent ? "Critical" : calm ? "Low" : top ? "Medium" : "Low";
+
+  const reply = top
+    ? `Thanks for flagging this — I've logged it as ${priority.toLowerCase()} priority and it's with the right team now. ` +
+      `Based on our knowledge base (${top.id}: ${top.title}), the first steps we'll work through are covered in our standard runbook. ` +
+      `I'll follow up as soon as there's an update.`
+    : `Thanks for getting in touch. This one doesn't match anything in our IT knowledge base, so I'm routing it to the right team rather than guessing at a fix. Someone will come back to you shortly.`;
+
+  return {
+    demo_mode: true,
+    priority,
+    category: top ? top.category : "General Enquiry",
+    sentiment: grateful ? "Appreciative" : urgent ? "Urgent/Escalated" : "Neutral",
+    confidence: top ? Math.min(95, Math.round(60 + top.score * 2)) : 40,
+    reasoning: top
+      ? `Matched knowledge base article ${top.id} with a BM25 score of ${top.score}; priority inferred from the language used in the ticket.`
+      : "No knowledge base article scored above the relevance threshold, so no remediation steps were supplied.",
+    sources_used: top ? [top.id] : [],
+    suggested_reply: reply,
+    retrieval: {
+      grounded: retrieved.length > 0,
+      retrieved: retrieved.map((r, i) => ({
+        id: r.id,
+        title: r.title,
+        category: r.category,
+        score: r.score,
+        cited: i === 0,
+      })),
+    },
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Use POST." });
@@ -45,14 +92,18 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: "Server is missing ANTHROPIC_API_KEY. See README.md." });
-    return;
-  }
 
   // --- 1. RETRIEVE -----------------------------------------------------------
   const retrieved = retrieve(ticket.trim(), { topK: 2 });
   const context = buildContext(retrieved);
+
+  // With no key configured, still answer — retrieval runs locally and needs no
+  // API at all, so the retrieval trace shown here is the real thing. Only the
+  // written reply is stubbed, and the UI labels it as such.
+  if (!apiKey) {
+    res.status(200).json(demoResponse(ticket.trim(), retrieved));
+    return;
+  }
 
   // --- 2. AUGMENT ------------------------------------------------------------
   const groundingBlock = context
