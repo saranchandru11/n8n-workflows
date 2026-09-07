@@ -78,7 +78,9 @@ examples) and see it audited in real time. Nothing entered is stored; every requ
 
 ```
 ai-governance-auditor/
-├── README.md                    ← you are here
+├── README.md                       ← you are here
+├── Nightly AI Decision Audit.json  ← n8n workflow: audits a whole day's log automatically
+├── scripts/build_workflow.py       ← generates that workflow JSON
 └── live-demo/
     ├── api/audit.js             ← serverless function; runs the three checks via Claude
     ├── public/index.html        ← the whole front end, one file, no build step
@@ -96,13 +98,106 @@ ai-governance-auditor/
 - With no key configured, the endpoint answers in a clearly-labelled **demo mode** with a
   rule-based sample audit, so the interface stays explorable without credentials.
 
+## 🌙 Nightly Batch Audit (n8n)
+
+The web tool audits one decision at a time, by hand. The n8n workflow does the same
+three checks **automatically across an entire day's decision log** — nobody clicks anything.
+
+**File:** [`Nightly AI Decision Audit.json`](./Nightly%20AI%20Decision%20Audit.json)
+
+### How it works
+
+```
+Every night at 8pm (Schedule Trigger)
+   └─ Read triage log (Google Sheets)
+       └─ Select yesterday's decisions (Code)      ← date-windows the rows, builds the decision record
+           └─ Any decisions to audit? (IF)         ← quiet exit if the log was empty
+               └─ Claude — audit decision (HTTP)   ← runs once per ticket, batched 5 at a time
+                   └─ Parse audit results (Code)   ← verdict, score, findings per ticket
+                       ├─ Log every verdict (Google Sheets)   ← builds audit history over time
+                       └─ Build audit digest (Code)           ← one email for the whole night
+                           └─ Anything to report? (IF)
+                               ├─ Email the audit digest (Gmail)   ← only Flagged + Needs Review
+                               └─ Clean night — no email (NoOp)
+```
+
+You get one email a morning: *"3 of yesterday's 40 decisions wouldn't survive an audit,
+here's why"* — with the failing check, the finding and the fix for each. A clean night
+sends nothing at all.
+
+### Design decisions worth noting
+
+- **A quiet night stays quiet.** The digest only sends when something needs attention.
+  A control that emails you every day gets filtered to a folder and stops being a control.
+- **One bad ticket can't kill the run.** If Claude returns something unparseable for a
+  single row, that row is logged as *Needs Review — audit by hand* and the other 39 still
+  complete.
+- **The verdict can't outrank its own checks.** Any `Fail` forces `Flagged`, and the score
+  is recomputed to match — a flagged record can't report 85/100.
+- **Requests are batched** 5 at a time with a 1.5s gap, with retries, so a busy day doesn't
+  trip Anthropic's rate limit mid-run.
+
+### Setup
+
+1. **Import** `Nightly AI Decision Audit.json` into n8n (Workflows → Import from File).
+2. **Create the audit log sheet** — a new Google Sheet with these headers in row 1:
+
+   `Audited At` · `Audit Window` · `Ticket Timestamp` · `Issue` · `Assigned Priority` ·
+   `Verdict` · `Audit Score` · `Failing Checks` · `Summary` · `Findings` · `Remediation` ·
+   `Audit Trail Gaps`
+
+3. **Replace the placeholders:**
+
+   | Placeholder | Replace with |
+   |-------------|--------------|
+   | `YOUR_TRIAGE_LOG_SHEET_URL` | URL of your existing IT Support Ticket Log sheet |
+   | `YOUR_AUDIT_LOG_SHEET_URL` | URL of the new audit log sheet from step 2 |
+   | `YOUR_CLAUDE_API_KEY` | Your Anthropic API key (in the HTTP node's `x-api-key` header) |
+   | `YOUR_EMAIL_ADDRESS` | Where the digest should land |
+
+4. **Attach credentials** — select your Google Sheets and Gmail credentials on those nodes
+   after import (they aren't bundled in the file, by design).
+5. **Test before activating** — click *Execute Workflow* and check the digest looks right.
+   To test against today instead of yesterday, set `AUDIT_DAYS_BACK = 0` at the top of the
+   *Select yesterday's decisions* node.
+6. **Activate.**
+
+### ⚠️ Expect a bad first score — that's the point
+
+The IT Support Ticket Log doesn't currently store *why* the triage system chose a priority.
+So on the first run, **check 1 (recorded rationale) will fail on nearly every row**, and most
+of your history will come back Flagged.
+
+That is a real finding about a real system, not a bug in the auditor. The fix is upstream:
+add a `Reasoning` column to the triage log and have the triage workflow's classification
+prompt return a `reasoning` field alongside `priority` and `category`. The audit script
+already reads `reasoning` from the classification JSON — once the triage system logs it,
+scores climb on their own.
+
+That story — *built the automation, then built the control that caught a gap in it, then
+closed the gap* — is worth more in an interview than a workflow that passed on day one.
+
+### Regenerating the workflow file
+
+The JSON is generated by [`scripts/build_workflow.py`](./scripts/build_workflow.py), because
+the Code nodes contain real JavaScript that's easier to maintain as source than as escaped
+JSON strings. To change the logic, edit the Python and re-run it:
+
+```bash
+cd ai-governance-auditor/scripts && python3 build_workflow.py
+```
+
 ## 🔭 What I'd Add Next
 
-- **Batch auditing** across an entire decision log at once, instead of one entry at a time
-- **A running audit score** summary across many entries, similar to a GRC compliance dashboard
-- **Direct integration** with a real ticketing system's export format (CSV / Google Sheets)
-- **An n8n scheduled workflow** that audits yesterday's triage log nightly and emails the
-  Flagged rows — closing the loop with the triage system this was built to review
+
+- **Batch auditing** across an entire decision log at once — ✅ **built**, see the
+  [Nightly Batch Audit](#-nightly-batch-audit-n8n) workflow above
+- **A running audit score** summary across many entries, similar to a GRC compliance
+  dashboard — partly there: every verdict is now logged to a sheet with a score, so the
+  trend is already accumulating. Next step is charting it.
+- **Direct integration** with a real ticketing system's export format (CSV / Jira / ServiceNow)
+- **Upstream fix**: add a `reasoning` column to the triage workflow so check 1 can pass —
+  the gap this auditor exposed in my own system
 
 ## 🔗 Related Project
 

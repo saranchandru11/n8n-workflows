@@ -173,7 +173,13 @@ Returns a verdict — Pass, Needs Review or Flagged — with findings, evidence 
 remediation per check. Evaluation criteria designed from Archer's control-review
 approach (Archer Certified Administrator); reasoning layer runs on the Claude API.
 
-**Built with:** Claude API → serverless endpoint → zero-dependency front end (Vercel)
+**Two ways to run it:**
+- **Live web tool** — paste one decision, get an instant review (Claude API + serverless)
+- **Nightly n8n workflow** — audits an entire day of triage decisions automatically at 8pm
+  and emails only the Flagged ones, so the control runs itself
+
+**Nodes used:** Schedule Trigger → Google Sheets (read log) → Code (select day) → IF →
+Claude API (audit) → Code (parse) → Google Sheets (log verdicts) + Code (digest) → IF → Gmail
 
 📂 [Full project details](./ai-governance-auditor/README.md) ·
 🚀 [Deploy walkthrough](./ai-governance-auditor/live-demo/README.md)

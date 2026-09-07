@@ -158,12 +158,16 @@ function normalise(parsed) {
 
   // If the model's verdict disagrees with its own checks, trust the checks —
   // a Fail on any control cannot sit under an overall Pass in a real review.
-  let verdict = validVerdicts.includes(parsed?.verdict) ? parsed.verdict : "Needs Review";
+  const claimedVerdict = validVerdicts.includes(parsed?.verdict) ? parsed.verdict : "Needs Review";
+  let verdict = claimedVerdict;
   if (checks.some((c) => c.status === "Fail")) verdict = "Flagged";
   else if (verdict === "Pass" && checks.some((c) => c.status === "Partial")) verdict = "Needs Review";
 
+  const defaultScore = verdict === "Pass" ? 90 : verdict === "Needs Review" ? 60 : 30;
   let score = Number(parsed?.audit_score);
-  if (!Number.isFinite(score)) score = verdict === "Pass" ? 90 : verdict === "Needs Review" ? 60 : 30;
+  // When the verdict was overridden, the model's score belongs to the verdict it
+  // claimed rather than the one it earned — a Flagged record must not show 85/100.
+  if (!Number.isFinite(score) || verdict !== claimedVerdict) score = defaultScore;
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   return {
