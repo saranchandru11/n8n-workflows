@@ -32,9 +32,9 @@ I'm upfront that the front-end code was AI-assisted rather than hand-written lin
 
 ## Try it live
 
-**Live demo:** https://claude.ai/code/artifact/3e468eca-aea9-4eaf-b965-9073a8407c61
+**Live demo:** [ai-governance-auditor.vercel.app](https://ai-governance-auditor.vercel.app)
 
-No setup needed — paste in a sample decision (or use one of the built-in examples) and see it audited in real time. Nothing you enter is stored.
+No sign-in needed — paste in a sample decision (or use one of the built-in examples) and see it audited in real time. Nothing you enter is stored. Source for the live demo is in [`live-demo/`](./live-demo).
 
 ## What I'd add next
 
