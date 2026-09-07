@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Governance Auditor</title>
+<meta name="description" content="Paste a logged AI decision and get a GRC-style control review — recorded rationale, escalation fit, and defensibility — by Saranya Chandrasekar." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #f5f7fa;
+    --ink: #1b2430;
+    --ink-dim: #5b6472;
+    --line: #dde2e8;
+    --accent: #2c5f8a;
+    --accent-ink: #ffffff;
+    --accent-soft: #dce9f3;
+    --fail: #b3372a;
+    --fail-soft: #fbe4e1;
+    --warn: #b07a1f;
+    --warn-soft: #faedd8;
+    --pass: #3f7d5c;
+    --pass-soft: #e1efe7;
+    --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 8px 24px -12px rgba(20, 24, 31, 0.18);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161c;
+      --surface: #1a2029;
+      --surface-2: #212833;
+      --ink: #e9ebee;
+      --ink-dim: #9aa3af;
+      --line: #2b3340;
+      --accent: #5d9ecb;
+      --accent-ink: #0d1620;
+      --accent-soft: #1b2c3a;
+      --fail: #e07566;
+      --fail-soft: #3a1f1c;
+      --warn: #e0ab5c;
+      --warn-soft: #3a2e17;
+      --pass: #77b596;
+      --pass-soft: #1b2e24;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 40px 24px 64px; }
+
+  header.top { margin-bottom: 30px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--pass);
+    box-shadow: 0 0 0 3px var(--pass-soft);
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15;
+    margin: 0 0 14px;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  .accentword { color: var(--accent); }
+  .lede { font-size: 16.5px; line-height: 1.6; color: var(--ink-dim); max-width: 66ch; margin: 0 0 12px; }
+  .byline { font-size: 13.5px; color: var(--ink-dim); margin: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .panel-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  label.field-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: block;
+    margin-bottom: 5px;
+  }
+  textarea, input, select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14.5px;
+    line-height: 1.55;
+    padding: 10px 12px;
+    resize: vertical;
+  }
+  textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea#sourceText { min-height: 120px; }
+  textarea#recordedReason { min-height: 70px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .examples-label { font-size: 12.5px; color: var(--ink-dim); }
+  .example-chip {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .example-chip:hover { border-color: var(--accent); color: var(--ink); }
+  .example-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  button.primary {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:disabled { opacity: 0.55; cursor: default; }
+  button.primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .hint { font-size: 12.5px; color: var(--ink-dim); }
+
+  .spinner {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: currentColor;
+    animation: spin 0.7s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .result-empty { color: var(--ink-dim); font-size: 14px; line-height: 1.6; padding: 24px 4px; }
+
+  .verdict-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .verdict-badge {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 6px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .verdict-Pass { background: var(--pass-soft); color: var(--pass); }
+  .verdict-Needs { background: var(--warn-soft); color: var(--warn); }
+  .verdict-Flagged { background: var(--fail-soft); color: var(--fail); }
+
+  .score-row { display: flex; align-items: center; gap: 10px; }
+  .score-track {
+    flex: 1; height: 6px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--line); overflow: hidden;
+  }
+  .score-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+  .score-num { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-dim); min-width: 40px; text-align: right; }
+
+  .summary-box {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 13px 15px;
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+
+  .check {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    background: var(--surface-2);
+  }
+  .check-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .check-name { font-weight: 600; font-size: 14.5px; }
+  .status-pill {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 9px; border-radius: 5px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .status-Pass { background: var(--pass-soft); color: var(--pass); }
+  .status-Partial { background: var(--warn-soft); color: var(--warn); }
+  .status-Fail { background: var(--fail-soft); color: var(--fail); }
+
+  .check-finding { font-size: 14px; line-height: 1.55; }
+  .kv { font-size: 13px; line-height: 1.5; color: var(--ink-dim); }
+  .kv .k {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    display: block; margin-bottom: 2px;
+  }
+  .kv .v { color: var(--ink); }
+  .kv.evidence .v { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+
+  .gaps { display: flex; flex-wrap: wrap; gap: 7px; }
+  .gap-chip {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    background: var(--fail-soft); color: var(--fail);
+    border-radius: 999px; padding: 5px 10px;
+  }
+
+  .notice {
+    background: var(--warn-soft); color: var(--warn);
+    border: 1px solid var(--warn);
+    border-radius: 8px; padding: 10px 13px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .error-box {
+    background: var(--fail-soft); color: var(--fail);
+    border: 1px solid var(--fail);
+    border-radius: 8px; padding: 12px 14px;
+    font-size: 13.5px; line-height: 1.5;
+  }
+
+  .criteria {
+    margin-top: 28px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .criteria h2 { font-size: 16px; margin: 0 0 6px; }
+  .criteria p.sub { font-size: 14px; color: var(--ink-dim); margin: 0 0 16px; max-width: 72ch; }
+  .criteria-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 760px) { .criteria-grid { grid-template-columns: 1fr; } }
+  .criterion { border: 1px solid var(--line); border-radius: 8px; padding: 13px; background: var(--surface-2); }
+  .criterion .n {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    color: var(--accent); letter-spacing: 0.06em; display: block; margin-bottom: 5px;
+  }
+  .criterion .t { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+  .criterion .d { font-size: 13.5px; color: var(--ink-dim); line-height: 1.5; }
+
+  footer {
+    margin-top: 40px; padding-top: 20px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    font-size: 13px; color: var(--ink-dim);
+  }
+  footer a { color: var(--ink-dim); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="eyebrow"><span class="dot"></span> Live — every decision below is reviewed by Claude in real time</div>
+      <h1>Your AI made a call. Could you <span class="accentword">defend it</span> in an audit?</h1>
+      <p class="lede">
+        Most AI automation projects stop at "does it work." This one asks "can you prove it worked correctly."
+        Paste in a logged AI decision — the input it saw, what it decided, what happened next — and it gets a
+        GRC-style control review: is the reason recorded, was the escalation proportionate, and would any of it
+        hold up months later.
+      </p>
+      <p class="byline">
+        Built by <a href="https://www.linkedin.com/in/saranya-chandrasekar-497a3328a" target="_blank" rel="noopener">Saranya Chandrasekar</a>
+        · Archer Certified Administrator
+        · <a href="https://github.com/saranchandru11/n8n-workflows" target="_blank" rel="noopener">source on GitHub</a>
+      </p>
+    </header>
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="input-label">
+        <div class="panel-label" id="input-label">01 · Logged decision</div>
+
+        <div class="examples">
+          <span class="examples-label">Load an example:</span>
+          <span id="examples"></span>
+        </div>
+
+        <div>
+          <label class="field-label" for="sourceText">Source input the AI system received</label>
+          <textarea id="sourceText" placeholder="The original ticket, email or message the AI classified…"></textarea>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label class="field-label" for="assignedPriority">Assigned priority</label>
+            <select id="assignedPriority">
+              <option value="">[not recorded]</option>
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+              <option>Critical</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="assignedCategory">Assigned category</label>
+            <input id="assignedCategory" type="text" placeholder="e.g. Network Access" />
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label" for="actionTaken">Action taken</label>
+          <input id="actionTaken" type="text" placeholder="e.g. Auto-replied and closed the ticket" />
+        </div>
+
+        <div>
+          <label class="field-label" for="recordedReason">Recorded reason for the decision</label>
+          <textarea id="recordedReason" placeholder="Leave blank if nothing was logged — that's a finding in itself."></textarea>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label class="field-label" for="reviewer">Human reviewer / approver</label>
+            <input id="reviewer" type="text" placeholder="Leave blank if none" />
+          </div>
+          <div>
+            <label class="field-label" for="timestamp">Timestamp</label>
+            <input id="timestamp" type="text" placeholder="e.g. 2026-03-04 09:12 UTC" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="auditBtn" type="button">
+            <span id="btnLabel">Audit this decision</span>
+          </button>
+          <span class="hint">Reviewed once, then discarded — nothing you enter is stored.</span>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="result-label">
+        <div class="panel-label" id="result-label">02 · Control review</div>
+        <div id="resultArea">
+          <div class="result-empty">
+            Fill in a logged decision on the left — or load an example — and click <strong>Audit this decision</strong>.
+            You'll get a verdict of Pass, Needs Review or Flagged, with a finding against each of the three checks.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="criteria">
+      <h2>What it checks, and why</h2>
+      <p class="sub">
+        GRC frameworks like Archer are built around one idea: nothing runs on trust alone — every risk and control
+        needs an evidence trail. These three checks apply that standard to AI decision logs instead of compliance controls.
+      </p>
+      <div class="criteria-grid">
+        <div class="criterion">
+          <span class="n">CHECK 01</span>
+          <div class="t">Recorded rationale</div>
+          <div class="d">Is there a clear, recorded reason for the decision — one specific enough that someone else could arrive at the same call from the log alone?</div>
+        </div>
+        <div class="criterion">
+          <span class="n">CHECK 02</span>
+          <div class="t">Escalation fit</div>
+          <div class="d">Was it escalated appropriately for its own stated risk level? A Critical item auto-closed with no human, or a Low item paging an engineer, are both control failures.</div>
+        </div>
+        <div class="criterion">
+          <span class="n">CHECK 03</span>
+          <div class="t">Defensibility</div>
+          <div class="d">Is there anything here that couldn't be defended if reviewed months later — missing actor identity, no timestamp, or reasoning resting on facts that were never in the source?</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>GRC control review, applied to AI decision logs · Claude API · Archer-informed criteria</span>
+      <span>Stateless — no decision data is retained.</span>
+    </footer>
+  </div>
+
+<script>
+  const EXAMPLES = [
+    {
+      label: "Critical, auto-closed",
+      data: {
+        source_text: "URGENT - the payment gateway is returning 500s for all customer transactions since about 08:40. Nothing is going through. Finance says roughly 400 orders have failed so far and it's climbing.",
+        assigned_priority: "Critical",
+        assigned_category: "Payment Systems",
+        action_taken: "Auto-replied with standard acknowledgement and closed the ticket",
+        recorded_reason: "",
+        reviewer: "",
+        timestamp: ""
+      }
+    },
+    {
+      label: "Clean record",
+      data: {
+        source_text: "Hi, I got locked out of my email after too many login attempts this morning. Could someone reset my password when you get a chance? Not urgent, I can work from my phone in the meantime.",
+        assigned_priority: "Low",
+        assigned_category: "Password Reset",
+        action_taken: "Routed to service desk queue; self-service reset link sent to user",
+        recorded_reason: "User explicitly stated the issue is not urgent and confirmed a working alternative (mobile access). Single-user impact, no data loss risk, standard reset path applies.",
+        reviewer: "S. Chandrasekar (service desk)",
+        timestamp: "2026-03-04 09:12 UTC"
+      }
+    },
+    {
+      label: "Thin rationale",
+      data: {
+        source_text: "This is the third time this week our shared drive has gone read-only in the middle of the day. The whole design team is blocked and we have a client handover Friday.",
+        assigned_priority: "High",
+        assigned_category: "Storage",
+        action_taken: "Escalated to infrastructure team",
+        recorded_reason: "High priority because it is urgent.",
+        reviewer: "",
+        timestamp: "2026-03-04 14:02 UTC"
+      }
+    },
+    {
+      label: "Over-escalated",
+      data: {
+        source_text: "Morning — the label printer on the 2nd floor is out of paper again. No rush at all, just flagging it so someone can top it up next time they walk past.",
+        assigned_priority: "Critical",
+        assigned_category: "Hardware",
+        action_taken: "Paged the on-call engineer at 02:15 and opened a major incident bridge",
+        recorded_reason: "Hardware issue affecting office equipment.",
+        reviewer: "Automated routing rule",
+        timestamp: "2026-03-05 02:15 UTC"
+      }
+    }
+  ];
+
+  const els = {
+    examples: document.getElementById("examples"),
+    sourceText: document.getElementById("sourceText"),
+    assignedPriority: document.getElementById("assignedPriority"),
+    assignedCategory: document.getElementById("assignedCategory"),
+    actionTaken: document.getElementById("actionTaken"),
+    recordedReason: document.getElementById("recordedReason"),
+    reviewer: document.getElementById("reviewer"),
+    timestamp: document.getElementById("timestamp"),
+    auditBtn: document.getElementById("auditBtn"),
+    btnLabel: document.getElementById("btnLabel"),
+    resultArea: document.getElementById("resultArea"),
+  };
+
+  EXAMPLES.forEach((ex) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "example-chip";
+    chip.textContent = ex.label;
+    chip.addEventListener("click", () => {
+      els.sourceText.value = ex.data.source_text;
+      els.assignedPriority.value = ex.data.assigned_priority;
+      els.assignedCategory.value = ex.data.assigned_category;
+      els.actionTaken.value = ex.data.action_taken;
+      els.recordedReason.value = ex.data.recorded_reason;
+      els.reviewer.value = ex.data.reviewer;
+      els.timestamp.value = ex.data.timestamp;
+      els.sourceText.focus();
+    });
+    els.examples.appendChild(chip);
+  });
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str == null ? "" : String(str);
+    return d.innerHTML;
+  }
+
+  function renderEmpty(msg) {
+    els.resultArea.innerHTML = `<div class="result-empty">${escapeHtml(msg)}</div>`;
+  }
+
+  function renderError(msg) {
+    els.resultArea.innerHTML = `<div class="error-box">${escapeHtml(msg)}</div>`;
+  }
+
+  function verdictClass(v) {
+    if (v === "Pass") return "verdict-Pass";
+    if (v === "Flagged") return "verdict-Flagged";
+    return "verdict-Needs";
+  }
+
+  function scoreColor(v) {
+    if (v === "Pass") return "var(--pass)";
+    if (v === "Flagged") return "var(--fail)";
+    return "var(--warn)";
+  }
+
+  function renderResult(r) {
+    const verdict = ["Pass", "Needs Review", "Flagged"].includes(r.verdict) ? r.verdict : "Needs Review";
+    const score = Math.max(0, Math.min(100, Number(r.audit_score) || 0));
+    const checks = Array.isArray(r.checks) ? r.checks : [];
+    const gaps = Array.isArray(r.audit_trail_gaps) ? r.audit_trail_gaps : [];
+
+    const checksHtml = checks.map((c) => {
+      const status = ["Pass", "Partial", "Fail"].includes(c.status) ? c.status : "Partial";
+      return `
+        <div class="check">
+          <div class="check-head">
+            <span class="check-name">${escapeHtml(c.name)}</span>
+            <span class="status-pill status-${status}">${status}</span>
+          </div>
+          <div class="check-finding">${escapeHtml(c.finding)}</div>
+          <div class="kv evidence"><span class="k">Evidence</span><span class="v">${escapeHtml(c.evidence)}</span></div>
+          ${c.remediation ? `<div class="kv"><span class="k">Remediation</span><span class="v">${escapeHtml(c.remediation)}</span></div>` : ""}
+        </div>`;
+    }).join("");
+
+    els.resultArea.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:15px;">
+        ${r.demo_mode ? `<div class="notice"><strong>Demo mode.</strong> No <code>ANTHROPIC_API_KEY</code> is configured on this deployment, so this is a rule-based sample audit, not a Claude review. Add the key to see the real thing.</div>` : ""}
+        <div class="verdict-head">
+          <span class="verdict-badge ${verdictClass(verdict)}">${escapeHtml(verdict)}</span>
+          <span class="hint">Overall audit confidence</span>
+        </div>
+        <div class="score-row">
+          <div class="score-track"><div class="score-fill" style="width:${score}%; background:${scoreColor(verdict)}"></div></div>
+          <span class="score-num">${score}/100</span>
+        </div>
+        <div class="summary-box">${escapeHtml(r.summary)}</div>
+        ${checksHtml}
+        ${gaps.length ? `
+          <div>
+            <span class="kv"><span class="k">Audit trail gaps</span></span>
+            <div class="gaps">${gaps.map((g) => `<span class="gap-chip">${escapeHtml(g)}</span>`).join("")}</div>
+          </div>` : ""}
+      </div>
+    `;
+  }
+
+  async function audit() {
+    const payload = {
+      source_text: els.sourceText.value.trim(),
+      assigned_priority: els.assignedPriority.value.trim(),
+      assigned_category: els.assignedCategory.value.trim(),
+      action_taken: els.actionTaken.value.trim(),
+      recorded_reason: els.recordedReason.value.trim(),
+      reviewer: els.reviewer.value.trim(),
+      timestamp: els.timestamp.value.trim(),
+    };
+
+    if (!payload.source_text) {
+      renderError("Paste the original input the AI system saw — a sentence or two is enough.");
+      return;
+    }
+
+    els.auditBtn.disabled = true;
+    els.btnLabel.innerHTML = `<span class="spinner" aria-hidden="true"></span> Reviewing…`;
+    renderEmpty("Running the three control checks…");
+
+    try {
+      const resp = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        renderError(data.error || "Something went wrong auditing that decision.");
+        return;
+      }
+      renderResult(data);
+    } catch (err) {
+      renderError("Couldn't reach the audit service. Check your connection and try again.");
+    } finally {
+      els.auditBtn.disabled = false;
+      els.btnLabel.textContent = "Audit this decision";
+    }
+  }
+
+  els.auditBtn.addEventListener("click", audit);
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") audit();
+  });
+</script>
+</body>
+</html>

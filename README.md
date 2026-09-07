@@ -153,7 +153,35 @@ Claude API (Response) → Gmail → IF node → Google Sheets (Logging)
 **Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/6f26d29f022048c4ac5510e1032ee705)
 
 📂 [Full project details](./it-support-ticket-triage/README.md)
+
+---
+
+### 7. 🔍 AI Governance Auditor
+A live tool that reviews logged AI decisions the way a GRC control review would —
+checking whether a decision has a clear recorded reason, was escalated appropriately
+for its risk level, and could hold up if audited later.
+
+**The question it answers:** most AI automation projects stop at "does it work."
+This one asks "can you prove it worked correctly."
+
+**What it checks:**
+- **Recorded rationale** — is there a clear, specific reason logged for the decision?
+- **Escalation fit** — was it escalated appropriately for its own stated risk level?
+- **Defensibility** — would any of it hold up if reviewed months later?
+
+Returns a verdict — Pass, Needs Review or Flagged — with findings, evidence and
+remediation per check. Evaluation criteria designed from Archer's control-review
+approach (Archer Certified Administrator); reasoning layer runs on the Claude API.
+
+**Built with:** Claude API → serverless endpoint → zero-dependency front end (Vercel)
+
+📂 [Full project details](./ai-governance-auditor/README.md) ·
+🚀 [Deploy walkthrough](./ai-governance-auditor/live-demo/README.md)
+
+---
+
 ## Prerequisites
+
 
 - [n8n](https://n8n.io) account (cloud or self-hosted)
 - [Anthropic Claude API key](https://console.anthropic.com)
