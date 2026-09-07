@@ -118,14 +118,14 @@ Edit Code node to adjust:
 
 ---
 ### 5. 🍎 Community Food Drive Volunteer Automation
-AI-powered welcome emails for community food drive volunteers — 
-built as a proof-of-concept for nonprofit organisations like 
+AI-powered welcome emails for community food drive volunteers —
+built as a proof-of-concept for nonprofit organisations like
 PORCH Morrisville NC.
 
 **How it works:**
 - Google Sheets Trigger watches for new volunteer sign-ups
-- Claude AI generates a warm, personalised welcome email using 
-  the volunteer's real name, neighborhood and role
+- Claude AI generates a warm, personalised welcome email using
+the volunteer's real name, neighborhood and role
 - Gmail sends the email automatically — zero human effort needed
 
 **Nodes used:** Google Sheets Trigger → HTTP Request (Claude API) → Gmail
@@ -143,16 +143,33 @@ PORCH Morrisville NC.
 ---
 ---
 ### 6. 🎫 AI-Powered IT Support Ticket Triage System
-Intelligent automation that classifies IT support tickets by priority, 
-generates personalised responses using Claude AI and a knowledge base, 
+Intelligent automation that classifies IT support tickets by priority,
+generates personalised responses using Claude AI and a knowledge base,
 and automatically routes and logs every ticket.
 
-**Nodes used:** Google Sheets Trigger → Claude API (Classification) → 
+**Nodes used:** Google Sheets Trigger → Claude API (Classification) →
 Claude API (Response) → Gmail → IF node → Google Sheets (Logging)
 
 **Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/6f26d29f022048c4ac5510e1032ee705)
 
 📂 [Full project details](./it-support-ticket-triage/README.md)
+
+---
+### 7. 🛡️ AI Governance Auditor
+A live tool that reviews logged AI decisions the way a GRC control review
+would — checking whether a decision has a clear recorded reason, was
+escalated appropriately for its risk level, and could hold up if audited later.
+
+**How it works:**
+- You paste in a logged AI decision (ticket text, priority/category, action taken)
+- Claude AI evaluates it against three criteria: a clear recorded reason,
+appropriate escalation for its risk level, and defensibility under later review
+- Returns a verdict — Pass, Needs Review, or Flagged — with specific findings
+
+**Demo:** [▶️ Try it live](https://claude.ai/code/artifact/3e468eca-aea9-4eaf-b965-9073a8407c61)
+
+📂 [Full project details](./ai-governance-auditor/README.md)
+
 ## Prerequisites
 
 - [n8n](https://n8n.io) account (cloud or self-hosted)
@@ -205,4 +222,3 @@ Claude API (Response) → Gmail → IF node → Google Sheets (Logging)
 ### Recommended `.gitignore`:
 
 Create a `.gitignore` file in your repo with:
-
