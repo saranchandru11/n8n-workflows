@@ -1,0 +1,531 @@
+{
+  "name": "Nightly AI Decision Audit",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 20
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -820,
+        0
+      ],
+      "id": "audit-every-night-at-8pm",
+      "name": "Every night at 8pm"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_TRIAGE_LOG_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "IT Support Ticket Log"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "audit-read-triage-log",
+      "name": "Read triage log"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Selects the previous day's triaged tickets from the IT Support Ticket Log and\n// reshapes each row into the decision record the auditor reviews.\n//\n// The three checks need four things per row: what the system saw, what it decided,\n// what it did, and why. The triage log as it stands does not carry a \"why\" column —\n// that absence is itself an audit finding, so it is passed through as empty rather\n// than papered over with a guess.\n\nconst SYSTEM_PROMPT = `You are the review engine behind an AI Governance Auditor.\n\nYou are NOT triaging a support ticket. The triage already happened — an AI system\nalready made a decision, and your job is to audit that decision after the fact, the\nway a GRC control reviewer would. You are looking for evidence and defensibility,\nnot for the \"right answer\".\n\nYou review exactly three criteria, in this order:\n\n1. RECORDED RATIONALE — Is there a clear, recorded reason for the decision?\n   A rationale must be specific to this case and traceable to the decision record.\n   \"High priority because it is urgent\" is circular and fails. A missing rationale is\n   a Fail, not a Partial, no matter how obvious the call looks.\n\n2. ESCALATION FIT — Was the decision escalated and actioned appropriately for its own\n   stated priority? Judge the action against the priority the system itself assigned.\n   A Critical decision closed with an auto-reply and no human involvement is a Fail.\n   A Low-priority item escalated to an on-call engineer is also a finding —\n   over-escalation wastes controls and dulls real alerts.\n\n3. DEFENSIBILITY — Could a reviewer reconstruct this decision months later? Consider\n   missing timestamps or actor identity, no human review on a high-impact automated\n   action, and reasoning resting on facts not present in the source text.\n\nBe strict, but do not invent findings to seem rigorous. If something is absent, the\nfinding is that it is absent.\n\nRespond with ONLY a JSON object, no markdown fences, no commentary:\n{\n  \"verdict\": \"Pass\" | \"Needs Review\" | \"Flagged\",\n  \"audit_score\": number,\n  \"summary\": string,\n  \"checks\": [\n    { \"id\": \"recorded_rationale\" | \"escalation_fit\" | \"defensibility\",\n      \"name\": string,\n      \"status\": \"Pass\" | \"Partial\" | \"Fail\",\n      \"finding\": string,\n      \"evidence\": string,\n      \"remediation\": string }\n  ],\n  \"audit_trail_gaps\": string[]\n}\n\nThe \"checks\" array must contain all three checks, in the order listed above.`;\n\n// --- Which day are we auditing? ---------------------------------------------\n// Runs at night and looks back over the previous calendar day, so a 20:00 run on\n// Tuesday audits all of Monday. Set AUDIT_DAYS_BACK to 0 to audit the current day.\nconst AUDIT_DAYS_BACK = 1;\n\nconst now = new Date();\nconst windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - AUDIT_DAYS_BACK);\nconst windowEnd = new Date(windowStart.getTime() + 24 * 60 * 60 * 1000);\n\nfunction parseRowDate(value) {\n  if (!value) return null;\n  // Google Sheets hands back either an ISO string or a locale string depending on\n  // how the cell was written; Date handles both, so only reject what it cannot read.\n  const d = new Date(value);\n  return isNaN(d.getTime()) ? null : d;\n}\n\n// The triage workflow writes Claude's classification into one cell as JSON text.\n// Pull the priority back out of it, falling back to the routing column.\nfunction readClassification(raw) {\n  if (!raw) return {};\n  if (typeof raw === 'object') return raw;\n  const text = String(raw);\n  const start = text.indexOf('{');\n  const end = text.lastIndexOf('}');\n  if (start === -1 || end === -1 || end <= start) return {};\n  try {\n    return JSON.parse(text.slice(start, end + 1));\n  } catch (e) {\n    return {};\n  }\n}\n\nconst out = [];\n\nfor (const item of $input.all()) {\n  const row = item.json;\n\n  const rowDate = parseRowDate(row['Timestamp']);\n  if (!rowDate || rowDate < windowStart || rowDate >= windowEnd) continue;\n\n  const classification = readClassification(row['Classification']);\n  const priority = classification.priority || row['Priority Level'] || '';\n  const category = classification.category || '';\n  const reason = classification.reasoning || classification.reason || '';\n\n  const routing = String(row['Priority Level'] || '').toUpperCase();\n  const actionTaken = routing.includes('HIGH') || routing.includes('CRITICAL')\n    ? 'Automated reply sent to requester by the triage workflow; logged to the high/critical queue'\n    : 'Automated reply sent to requester by the triage workflow; logged to the standard queue';\n\n  const decisionRecord = [\n    '=== LOGGED AI DECISION UNDER REVIEW ===',\n    '',\n    '--- Source input the AI system received ---',\n    row['Issue'] || '[not recorded]',\n    '',\n    '--- What the AI system decided ---',\n    'Assigned priority: ' + (priority || '[not recorded]'),\n    'Assigned category: ' + (category || '[not recorded]'),\n    'Action taken: ' + actionTaken,\n    'Recorded reason for the decision: ' + (reason || '[not recorded]'),\n    'Human reviewer / approver: [not recorded]',\n    'Timestamp: ' + (row['Timestamp'] || '[not recorded]'),\n    '',\n    '=== END OF RECORD ===',\n  ].join('\\n');\n\n  out.push({\n    json: {\n      ticket_timestamp: row['Timestamp'] || '',\n      requester_name: row['Name'] || '',\n      requester_email: row['Email'] || '',\n      issue: row['Issue'] || '',\n      assigned_priority: priority,\n      assigned_category: category,\n      recorded_reason: reason,\n      action_taken: actionTaken,\n      audit_window: windowStart.toISOString().slice(0, 10),\n      system_prompt: SYSTEM_PROMPT,\n      decision_record: decisionRecord,\n    },\n  });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        0
+      ],
+      "id": "audit-select-yesterdays-decisions",
+      "name": "Select yesterday's decisions"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-rows",
+              "leftValue": "={{ $json.decision_record }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "audit-any-decisions-to-audit?",
+      "name": "Any decisions to audit?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "YOUR_CLAUDE_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 1200, system: $json.system_prompt, messages: [{ role: 'user', content: $json.decision_record }] }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 1500
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        -100
+      ],
+      "id": "audit-claude-—-audit-decision",
+      "name": "Claude — audit decision",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turns each Claude response into a flat, sheet-friendly audit result.\n//\n// Two rules are enforced here rather than trusted to the prompt:\n//   1. A verdict cannot outrank its own checks — any Fail forces \"Flagged\".\n//   2. A malformed response degrades into a \"Needs Review\" row instead of\n//      killing the whole nightly run for the sake of one bad ticket.\n\nconst CHECK_ORDER = ['recorded_rationale', 'escalation_fit', 'defensibility'];\nconst CHECK_NAMES = {\n  recorded_rationale: 'Recorded rationale',\n  escalation_fit: 'Escalation fit',\n  defensibility: 'Defensibility',\n};\n\nfunction extractJson(text) {\n  let t = String(text || '').trim();\n  const fenced = t.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fenced) t = fenced[1].trim();\n  const start = t.indexOf('{');\n  const end = t.lastIndexOf('}');\n  if (start !== -1 && end !== -1 && end > start) t = t.slice(start, end + 1);\n  return t;\n}\n\nconst results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  // Pair each response back to the decision it came from — same index, because\n  // the HTTP node runs once per input item and preserves order.\n  const source = $('Select yesterday\\'s decisions').all()[i].json;\n  const raw = items[i].json?.content?.[0]?.text ?? '';\n\n  let parsed = null;\n  try {\n    parsed = JSON.parse(raw);\n  } catch (e) {\n    try {\n      parsed = JSON.parse(extractJson(raw));\n    } catch (e2) {\n      parsed = null;\n    }\n  }\n\n  if (!parsed) {\n    results.push({\n      json: {\n        ...source,\n        verdict: 'Needs Review',\n        audit_score: 0,\n        summary: 'Audit could not be completed — the model response could not be parsed. Review this ticket by hand.',\n        findings_text: 'Unparseable audit response.',\n        flagged_checks: '',\n        audit_trail_gaps: '',\n        parse_error: true,\n        audited_at: new Date().toISOString(),\n      },\n    });\n    continue;\n  }\n\n  const validStatuses = ['Pass', 'Partial', 'Fail'];\n  const byId = new Map();\n  if (Array.isArray(parsed.checks)) {\n    for (const c of parsed.checks) {\n      if (c && typeof c.id === 'string') byId.set(c.id, c);\n    }\n  }\n\n  const checks = CHECK_ORDER.map((id) => {\n    const c = byId.get(id) || {};\n    return {\n      id,\n      name: c.name || CHECK_NAMES[id],\n      status: validStatuses.includes(c.status) ? c.status : 'Partial',\n      finding: c.finding || 'No finding returned for this check.',\n      evidence: c.evidence || 'Not present in record',\n      remediation: c.remediation || '',\n    };\n  });\n\n  const claimedVerdict = ['Pass', 'Needs Review', 'Flagged'].includes(parsed.verdict) ? parsed.verdict : 'Needs Review';\n  let verdict = claimedVerdict;\n  if (checks.some((c) => c.status === 'Fail')) verdict = 'Flagged';\n  else if (verdict === 'Pass' && checks.some((c) => c.status === 'Partial')) verdict = 'Needs Review';\n\n  const defaultScore = verdict === 'Pass' ? 90 : verdict === 'Needs Review' ? 60 : 30;\n  let score = Number(parsed.audit_score);\n  // If the verdict was overridden, the model's score belongs to the verdict it\n  // claimed, not the one it earned — a Flagged row must not report 85/100.\n  if (!isFinite(score) || verdict !== claimedVerdict) score = defaultScore;\n  score = Math.max(0, Math.min(100, Math.round(score)));\n\n  const failing = checks.filter((c) => c.status !== 'Pass');\n\n  results.push({\n    json: {\n      ...source,\n      verdict,\n      audit_score: score,\n      summary: parsed.summary || 'Review completed; see findings.',\n      findings_text: checks.map((c) => c.name + ' [' + c.status + ']: ' + c.finding).join('\\n'),\n      flagged_checks: failing.map((c) => c.name).join(', '),\n      remediation_text: failing.map((c) => c.remediation).filter(Boolean).join(' | '),\n      audit_trail_gaps: Array.isArray(parsed.audit_trail_gaps) ? parsed.audit_trail_gaps.join(', ') : '',\n      checks,\n      parse_error: false,\n      audited_at: new Date().toISOString(),\n    },\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        -100
+      ],
+      "id": "audit-parse-audit-results",
+      "name": "Parse audit results"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_AUDIT_LOG_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "AI Audit Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Audited At": "={{ $json.audited_at }}",
+            "Audit Window": "={{ $json.audit_window }}",
+            "Ticket Timestamp": "={{ $json.ticket_timestamp }}",
+            "Issue": "={{ $json.issue }}",
+            "Assigned Priority": "={{ $json.assigned_priority }}",
+            "Verdict": "={{ $json.verdict }}",
+            "Audit Score": "={{ $json.audit_score }}",
+            "Failing Checks": "={{ $json.flagged_checks }}",
+            "Summary": "={{ $json.summary }}",
+            "Findings": "={{ $json.findings_text }}",
+            "Remediation": "={{ $json.remediation_text }}",
+            "Audit Trail Gaps": "={{ $json.audit_trail_gaps }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Audited At",
+              "displayName": "Audited At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Audit Window",
+              "displayName": "Audit Window",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Ticket Timestamp",
+              "displayName": "Ticket Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Issue",
+              "displayName": "Issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Assigned Priority",
+              "displayName": "Assigned Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Verdict",
+              "displayName": "Verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Audit Score",
+              "displayName": "Audit Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Failing Checks",
+              "displayName": "Failing Checks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Findings",
+              "displayName": "Findings",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Remediation",
+              "displayName": "Remediation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Audit Trail Gaps",
+              "displayName": "Audit Trail Gaps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        520,
+        -220
+      ],
+      "id": "audit-log-every-verdict",
+      "name": "Log every verdict"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Rolls every audited decision into a single digest email.\n//\n// Runs once for all items. Only the Flagged and Needs Review rows appear in the\n// body — a clean night should produce a short email, not a wall of passes. The\n// pass rate is included either way so the number is trackable over time.\n\nconst all = $input.all().map((i) => i.json);\n\nconst flagged = all.filter((r) => r.verdict === 'Flagged');\nconst needsReview = all.filter((r) => r.verdict === 'Needs Review');\nconst passed = all.filter((r) => r.verdict === 'Pass');\n\nconst total = all.length;\nconst passRate = total ? Math.round((passed.length / total) * 100) : 0;\nconst auditWindow = all[0]?.audit_window || new Date().toISOString().slice(0, 10);\n\nfunction esc(s) {\n  return String(s == null ? '' : s)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}\n\nfunction card(r, accent) {\n  const checkRows = (r.checks || [])\n    .filter((c) => c.status !== 'Pass')\n    .map((c) =>\n      '<div style=\"margin:8px 0 0;padding-left:10px;border-left:2px solid ' + accent + ';\">' +\n        '<div style=\"font-size:13px;font-weight:600;color:#1b2430;\">' + esc(c.name) + ' — ' + esc(c.status) + '</div>' +\n        '<div style=\"font-size:13px;color:#5b6472;margin-top:2px;\">' + esc(c.finding) + '</div>' +\n        (c.remediation ? '<div style=\"font-size:12.5px;color:#2c5f8a;margin-top:3px;\">Fix: ' + esc(c.remediation) + '</div>' : '') +\n      '</div>')\n    .join('');\n\n  return '<div style=\"border:1px solid #dde2e8;border-radius:8px;padding:14px;margin:0 0 12px;\">' +\n      '<div style=\"font-size:14.5px;font-weight:600;color:#1b2430;\">' + esc(r.issue || '(no issue title)') + '</div>' +\n      '<div style=\"font-size:12px;color:#5b6472;margin-top:3px;font-family:monospace;\">' +\n        esc(r.ticket_timestamp) + ' · ' + esc(r.assigned_priority || 'no priority') + ' · score ' + esc(r.audit_score) + '/100' +\n      '</div>' +\n      '<div style=\"font-size:13.5px;color:#1b2430;margin-top:8px;\">' + esc(r.summary) + '</div>' +\n      checkRows +\n    '</div>';\n}\n\nlet body =\n  '<div style=\"font-family:-apple-system,Segoe UI,sans-serif;max-width:680px;color:#1b2430;\">' +\n  '<h2 style=\"margin:0 0 4px;font-size:19px;\">AI Decision Audit — ' + esc(auditWindow) + '</h2>' +\n  '<p style=\"margin:0 0 16px;color:#5b6472;font-size:14px;\">' +\n    'GRC control review of every decision the triage system made that day.' +\n  '</p>' +\n  '<table style=\"border-collapse:collapse;margin:0 0 20px;font-size:14px;\">' +\n    '<tr><td style=\"padding:3px 16px 3px 0;color:#5b6472;\">Decisions audited</td><td style=\"font-weight:600;\">' + total + '</td></tr>' +\n    '<tr><td style=\"padding:3px 16px 3px 0;color:#5b6472;\">Passed</td><td style=\"font-weight:600;color:#3f7d5c;\">' + passed.length + ' (' + passRate + '%)</td></tr>' +\n    '<tr><td style=\"padding:3px 16px 3px 0;color:#5b6472;\">Needs review</td><td style=\"font-weight:600;color:#b07a1f;\">' + needsReview.length + '</td></tr>' +\n    '<tr><td style=\"padding:3px 16px 3px 0;color:#5b6472;\">Flagged</td><td style=\"font-weight:600;color:#b3372a;\">' + flagged.length + '</td></tr>' +\n  '</table>';\n\nif (flagged.length) {\n  body += '<h3 style=\"font-size:15px;margin:0 0 10px;color:#b3372a;\">Flagged — would not survive an audit as logged</h3>';\n  body += flagged.map((r) => card(r, '#b3372a')).join('');\n}\n\nif (needsReview.length) {\n  body += '<h3 style=\"font-size:15px;margin:18px 0 10px;color:#b07a1f;\">Needs review — evidence trail is thin</h3>';\n  body += needsReview.map((r) => card(r, '#b07a1f')).join('');\n}\n\nif (!flagged.length && !needsReview.length) {\n  body += '<p style=\"font-size:14px;color:#3f7d5c;\">Every decision audited clean. No control gaps found.</p>';\n}\n\nbody += '<p style=\"margin-top:22px;font-size:12px;color:#8a929e;\">' +\n  'Generated by the Nightly AI Decision Audit workflow · checks: recorded rationale, escalation fit, defensibility.' +\n  '</p></div>';\n\nreturn [{\n  json: {\n    audit_window: auditWindow,\n    total,\n    passed: passed.length,\n    needs_review: needsReview.length,\n    flagged: flagged.length,\n    pass_rate: passRate,\n    // Drives the \"send or stay quiet\" decision downstream.\n    needs_attention: flagged.length + needsReview.length,\n    subject: '[AI Audit] ' + auditWindow + ' — ' + flagged.length + ' flagged, ' +\n             needsReview.length + ' need review (' + total + ' audited)',\n    html: body,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        20
+      ],
+      "id": "audit-build-audit-digest",
+      "name": "Build audit digest"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "needs-attention",
+              "leftValue": "={{ $json.needs_attention }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        740,
+        20
+      ],
+      "id": "audit-anything-to-report?",
+      "name": "Anything to report?"
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL_ADDRESS",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        -80
+      ],
+      "id": "audit-email-the-audit-digest",
+      "name": "Email the audit digest"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        120
+      ],
+      "id": "audit-clean-night-—-no-email",
+      "name": "Clean night — no email"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        80,
+        120
+      ],
+      "id": "audit-nothing-logged-yesterday",
+      "name": "Nothing logged yesterday"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every night at 8pm": {
+      "main": [
+        [
+          {
+            "node": "Read triage log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read triage log": {
+      "main": [
+        [
+          {
+            "node": "Select yesterday's decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select yesterday's decisions": {
+      "main": [
+        [
+          {
+            "node": "Any decisions to audit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any decisions to audit?": {
+      "main": [
+        [
+          {
+            "node": "Claude — audit decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nothing logged yesterday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — audit decision": {
+      "main": [
+        [
+          {
+            "node": "Parse audit results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse audit results": {
+      "main": [
+        [
+          {
+            "node": "Log every verdict",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build audit digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build audit digest": {
+      "main": [
+        [
+          {
+            "node": "Anything to report?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything to report?": {
+      "main": [
+        [
+          {
+            "node": "Email the audit digest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Clean night — no email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "id": "nightly-ai-decision-audit",
+  "tags": []
+}

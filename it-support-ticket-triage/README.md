@@ -34,6 +34,81 @@ This system does all of that automatically in seconds.
    - Low/Medium → standard logging
 8. **Google Sheets** — logs every ticket automatically
 
+## 🔍 Retrieval-Augmented Generation (RAG)
+
+Replies are **grounded in a retrieved knowledge base**, not written from the model's general
+knowledge. The flow is retrieve → augment → generate:
+
+1. **Retrieve** — the ticket is ranked against every article in the KB sheet using **BM25**,
+   and only the top 2 are selected. Most articles are never sent to the model.
+2. **Augment** — those articles are injected into the prompt, tagged by ID.
+3. **Generate** — Claude drafts a reply using only those steps, and cites the article IDs it used.
+
+The retrieved article IDs are written to the ticket log, so **every automated reply is traceable
+to the source that produced it**.
+
+### Why BM25 and not a vector database
+
+A fair question in an interview, so the reasoning is worth stating plainly.
+
+BM25 is a lexical ranking function — it scores documents by term overlap, weighted by how rare
+each term is and normalised for document length. Vector search scores by embedding similarity instead.
+
+For this corpus BM25 is the better engineering choice:
+
+- **Ten short, keyword-dense articles.** Support tickets and KB articles share vocabulary almost
+  exactly ("VPN dropping" → an article about VPN drops). Semantic similarity solves a problem
+  this corpus does not have.
+- **Zero extra dependencies.** Anthropic doesn't serve embeddings, so a vector approach means a
+  second API provider, a second key, and a second point of failure — for a corpus that fits in
+  memory.
+- **Deterministic.** The same ticket retrieves the same articles every time. When the governance
+  auditor asks *why* a reply was produced, "BM25 score 15.1 against KB-01" is an answer that
+  reproduces. An approximate-nearest-neighbour index is not reproducible in the same way.
+
+**When I'd switch:** past roughly 200 articles, or when users start describing problems in
+vocabulary the articles don't contain ("can't get on the internet from home" → a VPN article
+with no shared terms). That's the point where semantic matching earns its complexity — and the
+retriever interface is already isolated in one function, so swapping it is a contained change.
+
+### Refusing to answer is a feature
+
+If nothing scores above the threshold, the retriever returns **nothing** and the prompt instructs
+the model not to invent remediation steps. The log records the ticket as ungrounded.
+
+A retrieval system that always returns its best guess is dangerous in support, because a guess
+arrives with the same confidence as a real answer. Full threshold calibration data is in the
+[knowledge base README](./knowledge-base/README.md).
+
+## 📦 What Changed to Add Retrieval
+
+The original workflow was **not rebuilt**. Two nodes were inserted and one prompt rewritten:
+
+| Node | Status |
+|---|---|
+| Google Sheets Trigger | unchanged |
+| HTTP Request (classification) | unchanged |
+| **Fetch knowledge base** | **added** — reads the KB sheet |
+| **Retrieve matching articles** | **added** — BM25 ranking, selects top 2 |
+| HTTP Request1 (response) | prompt rewritten to use retrieved context |
+| Send a message (Gmail) | unchanged |
+| If (priority routing) | unchanged |
+| Append row in sheet ×2 | +2 columns for source citations |
+
+Files:
+- `IT Support Ticket Triage with RAG.json` — the updated workflow
+- `IT support Json file.txt` — the original, left in place for comparison
+- `knowledge-base/it-knowledge-base.csv` — the corpus, to import into Google Sheets
+- `scripts/build_rag_workflow.py` — patches the original into the RAG version
+
+### Setup
+
+1. Import `knowledge-base/it-knowledge-base.csv` into a Google Sheet named **IT Knowledge Base**.
+2. Add two columns to your ticket log sheet: `KB Sources` and `Retrieval Evidence`.
+3. Import `IT Support Ticket Triage with RAG.json` into n8n.
+4. Replace `YOUR_KNOWLEDGE_BASE_SHEET_URL` and attach your Google Sheets / Gmail credentials.
+5. Test with *Execute Workflow* before activating.
+
 ## 🛠️ Tools Used
 
 - **n8n** — workflow automation (self-hosted via Docker)

@@ -1,9 +1,11 @@
 {
-  "name": "ai-governance-auditor-live-demo",
+  "name": "ai-governance-auditor",
   "version": "1.0.0",
   "private": true,
-  "description": "Live demo for the AI Governance Auditor — static front end + a Vercel serverless function that calls the Claude API.",
-  "engines": {
-    "node": ">=18"
+  "type": "module",
+  "description": "AI Governance Auditor — a GRC-style control review for logged AI decisions. Paste a decision, get a Pass / Needs Review / Flagged verdict with findings.",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "vercel-dev": "vercel dev"
   }
 }

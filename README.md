@@ -118,14 +118,14 @@ Edit Code node to adjust:
 
 ---
 ### 5. 🍎 Community Food Drive Volunteer Automation
-AI-powered welcome emails for community food drive volunteers —
-built as a proof-of-concept for nonprofit organisations like
+AI-powered welcome emails for community food drive volunteers — 
+built as a proof-of-concept for nonprofit organisations like 
 PORCH Morrisville NC.
 
 **How it works:**
 - Google Sheets Trigger watches for new volunteer sign-ups
-- Claude AI generates a warm, personalised welcome email using
-the volunteer's real name, neighborhood and role
+- Claude AI generates a warm, personalised welcome email using 
+  the volunteer's real name, neighborhood and role
 - Gmail sends the email automatically — zero human effort needed
 
 **Nodes used:** Google Sheets Trigger → HTTP Request (Claude API) → Gmail
@@ -143,11 +143,11 @@ the volunteer's real name, neighborhood and role
 ---
 ---
 ### 6. 🎫 AI-Powered IT Support Ticket Triage System
-Intelligent automation that classifies IT support tickets by priority,
-generates personalised responses using Claude AI and a knowledge base,
+Intelligent automation that classifies IT support tickets by priority, 
+generates personalised responses using Claude AI and a knowledge base, 
 and automatically routes and logs every ticket.
 
-**Nodes used:** Google Sheets Trigger → Claude API (Classification) →
+**Nodes used:** Google Sheets Trigger → Claude API (Classification) → 
 Claude API (Response) → Gmail → IF node → Google Sheets (Logging)
 
 **Demo Video:** [▶️ Watch Demo](https://www.loom.com/share/6f26d29f022048c4ac5510e1032ee705)
@@ -155,22 +155,39 @@ Claude API (Response) → Gmail → IF node → Google Sheets (Logging)
 📂 [Full project details](./it-support-ticket-triage/README.md)
 
 ---
-### 7. 🛡️ AI Governance Auditor
-A live tool that reviews logged AI decisions the way a GRC control review
-would — checking whether a decision has a clear recorded reason, was
-escalated appropriately for its risk level, and could hold up if audited later.
 
-**How it works:**
-- You paste in a logged AI decision (ticket text, priority/category, action taken)
-- Claude AI evaluates it against three criteria: a clear recorded reason,
-appropriate escalation for its risk level, and defensibility under later review
-- Returns a verdict — Pass, Needs Review, or Flagged — with specific findings
+### 7. 🔍 AI Governance Auditor
+A live tool that reviews logged AI decisions the way a GRC control review would —
+checking whether a decision has a clear recorded reason, was escalated appropriately
+for its risk level, and could hold up if audited later.
 
-**Demo:** [▶️ Try it live](https://claude.ai/code/artifact/3e468eca-aea9-4eaf-b965-9073a8407c61)
+**The question it answers:** most AI automation projects stop at "does it work."
+This one asks "can you prove it worked correctly."
 
-📂 [Full project details](./ai-governance-auditor/README.md)
+**What it checks:**
+- **Recorded rationale** — is there a clear, specific reason logged for the decision?
+- **Escalation fit** — was it escalated appropriately for its own stated risk level?
+- **Defensibility** — would any of it hold up if reviewed months later?
+
+Returns a verdict — Pass, Needs Review or Flagged — with findings, evidence and
+remediation per check. Evaluation criteria designed from Archer's control-review
+approach (Archer Certified Administrator); reasoning layer runs on the Claude API.
+
+**Two ways to run it:**
+- **Live web tool** — paste one decision, get an instant review (Claude API + serverless)
+- **Nightly n8n workflow** — audits an entire day of triage decisions automatically at 8pm
+  and emails only the Flagged ones, so the control runs itself
+
+**Nodes used:** Schedule Trigger → Google Sheets (read log) → Code (select day) → IF →
+Claude API (audit) → Code (parse) → Google Sheets (log verdicts) + Code (digest) → IF → Gmail
+
+📂 [Full project details](./ai-governance-auditor/README.md) ·
+🚀 [Deploy walkthrough](./ai-governance-auditor/live-demo/README.md)
+
+---
 
 ## Prerequisites
+
 
 - [n8n](https://n8n.io) account (cloud or self-hosted)
 - [Anthropic Claude API key](https://console.anthropic.com)
@@ -222,3 +239,4 @@ appropriate escalation for its risk level, and defensibility under later review
 ### Recommended `.gitignore`:
 
 Create a `.gitignore` file in your repo with:
+
