@@ -59,7 +59,7 @@ specific checks matter.
 
 ## 🚀 Try It Live
 
-**Live demo:** [ai-governance-auditor.vercel.app](https://ai-governance-auditor.vercel.app) — see [`live-demo/README.md`](./live-demo/README.md) for the 10-minute deploy walkthrough.for the 10-minute deploy walkthrough.
+**Live demo:** [ai-governance-auditor.vercel.app](https://ai-governance-auditor.vercel.app) — see [`live-demo/README.md`](./live-demo/README.md) for the 10-minute deploy walkthrough.
 
 No setup needed for visitors — paste in a sample decision (or use one of the four built-in
 examples) and see it audited in real time. Nothing entered is stored; every request is stateless.
