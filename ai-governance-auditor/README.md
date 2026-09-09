@@ -47,15 +47,19 @@ That shows up in the design in concrete ways:
 
 ## 🛠️ How It Was Built
 
-- **Logic and evaluation criteria** — designed by me, based on Archer's control-review approach
+- **Logic and evaluation criteria** — Claude proposed the three checks (recorded rationale,
+  escalation fit, defensibility) after we identified the gap in my triage system. I recognized
+  them immediately as core GRC control-review principles from my Archer Certified
+  Administrator training, and guided the build from there.
 - **AI reasoning layer** — Claude API, prompted to evaluate each logged decision against the
   three criteria above and return structured JSON
 - **Interface** — built using AI-assisted development to move quickly from concept to a
   working, testable tool
 
-I'm upfront that the front-end code was AI-assisted rather than hand-written line by line —
-the part I designed and own is the judgment behind *what* the tool checks for and *why* those
-specific checks matter.
+I'm upfront that this was a Claude-led build: Claude wrote the code and proposed the
+evaluation logic. What I brought was the problem (from my own triage system), the judgment to
+recognize why those three checks were the right ones, drawn from real GRC training, and the
+direction from there.
 
 ## 🚀 Try It Live
 
